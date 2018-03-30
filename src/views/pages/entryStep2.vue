@@ -19,6 +19,10 @@
 	        <div style="width: 95%;margin: 10px auto;">
 	        	<el-button @click="addTable">新增表格</el-button>
 	        </div>	
+			-----------
+				<cc v-bind:data="tableData">
+				</cc>
+			-----------
 	        <div class="indicator-table">
 	            <web-excel 
 	              v-for='(indicatorTable, index) in indicatorsTable'
@@ -28,8 +32,6 @@
 	              :id="index"></web-excel>         
 	        </div>
 		</div>
-		<cc>
-		</cc>
 		<el-dialog
 		  size="tiny"
 		  :visible.sync='dialogVisible'>
@@ -63,6 +65,27 @@ export default {
   },
   data() {
     return {
+      tableData: [
+        [
+          {
+            x: 2,
+            y: 1,
+            content: "xx"
+          },
+          {
+            x: 1,
+            y: 1,
+            content: "xx2"
+          },
+        ],
+        [
+          {
+            x: 1,
+            y: 1,
+            content: "yy"
+          }
+        ]
+      ],
       indicatorsTable: [],
       args: [],
       dialogVisible: false
