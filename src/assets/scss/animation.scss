@@ -1,0 +1,41 @@
+/*fadeSmallInDown*/
+@keyframes fadeSmallInDown {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -80%, 0);
+  }
+
+  to {
+    opacity: .4;
+    transform: translate3d(0, 0, 0);
+  }
+}
+/*fadeOutUp*/
+@keyframes fadeSmallOutUp {
+  from {
+    opacity: .4;
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(0, -80%, 0);
+  }
+}
+// .fadeSmallInDown {
+//   animation-name: fadeSmallInDown;
+// }
+// .fadeSmallOutUp {
+//   animation-name: fadeSmallOutUp;
+// }
+
+.scroll-enter-active {
+  animation-name: fadeSmallInDown;
+  animation-duration: .2s;
+  // animation: fadeSmallInDown .3s;
+}
+.scroll-leave-active {
+  animation-name: fadeSmallOutUp;
+  animation-duration: .2s;
+  // animation: fadeSmallOutUp .2s;
+}

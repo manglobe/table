@@ -1,0 +1,148 @@
+html, body {
+	margin: 0px;
+	padding: 0px;
+	font-size: 14px;
+	font-family: Microsoft YaHei!important;
+	height: 100%;
+	width: 100%;
+}
+//一级标题样式
+.title1 {
+	display: flex;
+	align-items: center;
+	font-size: 16px;
+	margin-bottom: 15px;
+	.line {
+		display: inline-block;
+		height: 20px;
+		width: 4px;
+		background-color: #4db3ff;
+		border-radius: 2px;
+		margin-right: 8px;
+	}
+}
+//二级标题样式
+.title2 {
+	display: inline-block;
+	width: 100px;
+	font-size: 16px;
+	text-align: right;
+}
+//输入框边框颜色
+.el-input__inner, .el-textarea__inner {
+	border: 1px solid #ccc!important;
+	color: #1f3c3d!important;	
+}
+::-webkit-input-placeholder {
+	color: #ccc!important;
+}	
+//输入框字体格式
+input, textarea {
+	font-family: Microsoft YaHei!important;
+}
+//表格大小
+@media screen and (min-width: 1440px) {
+	.shen-table .el-table__body-wrapper {
+		max-height: 400px!important;		
+	}
+}
+@media screen and (max-width: 1441px) {
+	.shen-table .el-table__body-wrapper {
+		max-height: 400px!important;
+	}
+}
+.el-table__body-wrapper {
+	overflow: overlay!important;
+}
+//单行超出省略号显示
+.ellipsis {
+	overflow: hidden;
+	text-overflow:ellipsis;
+	white-space: nowrap;
+}
+//表填必填项
+.required {
+	color: red;
+	vertical-align: middle;
+}
+//表单提示填写
+.tips {
+	position: absolute;
+	font-size: 12px;
+	color: rgb(255, 73, 73);
+	left: 102px;
+	width: 250px!important;
+}
+//步骤条样式
+.steps {
+	width: 95%;
+    min-width: 710px;
+	margin: 0 auto;
+	height: 40px;
+	background-color: #fff;
+	display: flex;
+    .step {
+    	position: relative;
+    	background-color: #cacaca;
+    	margin-right: 3px;
+    	flex: 1;
+    	text-align: center;
+    	line-height: 40px;
+    	color: #fff;
+    	font-size: 16px;
+    	cursor: pointer;
+    	&:last-child {
+    		margin-right: 0;
+    	}
+    	.arrow {
+    		position: absolute;
+    		left: 0;
+    		display: inline-block;
+    		border-left: 15px solid #fff;
+    		border-top: 20px solid transparent;
+    		border-bottom: 20px solid transparent;
+    		&:before {
+    			content: '';
+    			position: absolute;
+	    		left: -18px;
+	    		top: -20px;
+	    		display: inline-block;
+	    		border-left: 15px solid #cacaca;
+	    		border-top: 20px solid transparent;
+	    		border-bottom: 20px solid transparent;
+    		}
+    		&.arrowActive {
+    			&:before {
+    				border-left: 15px solid #06aea6;
+    			}
+    		}
+    	}
+    }
+    .stepActive {
+    	background-color: #06aea6;
+    }
+}
+.entry-step {
+	position: absolute;
+	left: 25px;
+    right: 25px;    
+}
+//上一步下一步按钮
+.button-wrapper {
+	position: fixed;
+    bottom: 0;
+    text-align: center;
+    left: 180px;
+    right: 0px;
+    height: 60px;
+    line-height: 60px;
+    background-color: #eee;
+    box-shadow: inset 1px 0 4px 0 rgba(202,202,202,0.5);
+    border-top: 1px solid #e5e5e5;
+    z-index: 1000;
+}
+//echarts边框
+.vue-echarts {
+	border: 1px solid #d1d1d1;
+}
+
