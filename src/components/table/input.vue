@@ -36,9 +36,10 @@ export default {
     },
     // textarea
     inputHandle: function(e) {
-      // console.log(e.target.scrollHeight)
+      console.log(e.target.scrollHeight)
       // console.log(e.target.scrollTop )
-      e.target.parentNode.style.height = e.target.scrollHeight + "px";
+      console.log(e.target.parentNode.scrollHeight)
+      e.target.parentNode.scrollHeight = e.target.scrollHeight + "px";
     },
     blurHandle: function() {
       this.click = false;
@@ -46,7 +47,6 @@ export default {
     },
     keyupHandle: function(e) {
       //   console.log(e.keyCode);
-
       if (e.altKey && e.keyCode === 13) {
         // alt+enter
         this.value += "\n";

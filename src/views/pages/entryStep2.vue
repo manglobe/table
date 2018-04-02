@@ -19,10 +19,10 @@
 	        <div style="width: 95%;margin: 10px auto;">
 	        	<el-button @click="addTable">新增表格</el-button>
 	        </div>	
-			-----------
+<!-- 			
 				<cc v-bind:data="tableData">
-				</cc>
-			-----------
+				</cc> -->
+			
 	        <div class="indicator-table">
 	            <web-excel 
 	              v-for='(indicatorTable, index) in indicatorsTable'
@@ -54,7 +54,7 @@
 
 <script>
 import service from "@/service/service";
-import handleObject from "@/util/handleObject";
+// import handleObject from "@/util/handleObject";
 import webExcel from "@/components/webExcel";
 import cc from "@/components/table";
 
@@ -76,7 +76,7 @@ export default {
             x: 1,
             y: 1,
             content: "xx2"
-          },
+          }
         ],
         [
           {
@@ -206,5 +206,14 @@ export default {
 }
 .info-popover {
   z-index: 2000 !important;
+}
+// 2018.4.2 new recover style
+.handsontable,
+.ht_master .wtHolder {
+  overflow: hidden;
+  height: auto !important;
+}
+.ht_clone_top .wtHolder, .ht_clone_bottom .wtHolder{
+  overflow-x: hidden;
 }
 </style>
