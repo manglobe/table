@@ -67,6 +67,8 @@ export default {
   data() {
     var self = this;
     return {
+      funcStore: {},
+      funcCache: "",
       visible: false,
       isDelete: false,
       hot1: "",
@@ -85,7 +87,7 @@ export default {
       funcSelect(v) {
         // let selectItem = self.hot1.getSelect()
         // selectItem
-        console.log(excelFunctions[v].func());
+        // console.log(excelFunctions[v].func());
       },
       hotSettings: {
         data:
@@ -102,65 +104,118 @@ export default {
         height: 228,
         // formulas: true,
         className: "htCenter htMiddle",
+        beforeChange: function(changes, sourse) {
+          // TODO: this select not for single target
+          // const selectNode = document
+          //   .getElementsByTagName("tbody")[0]
+          //   .getElementsByTagName("tr")
+          //   [changes[0][0]].getElementsByTagName("td")[changes[0][1]];
+          const changeVal = changes[0][3];
+
+          // 'A3' => ['1','3']
+          const str2RowCol = str => {
+            let arr = str.match(/^([a-z]+)(\d+)/i);
+            return [arr[2] - 1, arr[1].charCodeAt(0) - 97];
+          };
+          const getParams = paramsStr => {
+            if (/\:/.test(paramsStr)) {
+              // TODO: /g
+              let cellArr = paramsStr.match(/([a-z]\d+)\:([a-z]\d+)/i);
+              return self.hot1.getData(
+                +str2RowCol(cellArr[1])[0],
+                str2RowCol(cellArr[1])[1],
+                +str2RowCol(cellArr[2])[0],
+                str2RowCol(cellArr[2])[1]
+              );
+            }
+          };
+
+          if (/^=/.test(changeVal)) {
+            let midVal;
+            let useFunc = /^=([A-Za-z]+)\(/.test(changeVal);
+            if (useFunc) {
+              // 使用命名函数
+              let func = changeVal.match(/^=([A-Za-z]+)\(/)[1];
+              const params = getParams(changeVal.match(/\((.*)\)/)[1]);
+              try {
+                midVal = excelFunctions[func].func(params);
+              } catch (error) {
+                console.log(error);
+              }
+            } else {
+              midVal = eval(
+                changeVal
+                  .replace(/\=/, "")
+                  .replace(/([a-z]+)(\d+)/g, (match, $1, $2) => {
+                    return (
+                      self.hot1.getDataAtCell($2 - 1, $1.charCodeAt(0) - 97) ||
+                      0
+                    );
+                  })
+              );
+            }
+            // 修改输入值
+            changes[0][3] = midVal;
+            // 存储函数
+            self.funcStore[`${changes[0][0]}-${changes[0][1]}`] = changeVal;
+          } else {
+            // 清空存储
+            self.funcStore[`${changes[0][0]}-${changes[0][1]}`] &&
+              (self.funcStore[`${changes[0][0]}-${changes[0][1]}`] = null);
+          }
+        },
+        afterBeginEditing: function(row, col) {
+          let data = self.hot1.getDataAtCell(row, col);
+          let edit = self.hot1.getActiveEditor();
+          if (self.funcStore[`${row}-${col}`]) {
+            edit.TEXTAREA.value = self.funcStore[`${row}-${col}`];
+          }
+
+          edit.TEXTAREA.addEventListener("input", function() {
+            if (/^=/.test(this.value)) {
+              if (/[\=\(\+\-\*\/]\s*$/.test(this.value)) {
+                const cacheValue = edit.TEXTAREA.value;
+                // 开始单元格选择
+                // let _table = self.$el.getElementsByTagName("table")[0];
+                // _table.addEventListener("click", function(e) {
+                //   if (e.target.tagName === 'TD') {
+                //     console.log(edit)
+                //     edit.TEXTAREA_PARENT.style.display='block'
+                //     e.target.classList.add('params-choosed') // 选中样式
+                //     edit.TEXTAREA.value += e.target
+                //    }
+                // });
+                const selectCall = (r, c, r2, c2) => {
+                  edit.TEXTAREA_PARENT.classList.add("block-important");
+                  let selectRange;
+                  if (r === r2 && c === c2) {
+                    // 1格
+                    selectRange = `${String.fromCharCode(c + 97)}${r + 1}`;
+                  } else {
+                    // 多格
+                    selectRange = `${String.fromCharCode(c + 97)}${r +
+                      1}:${String.fromCharCode(c2 + 97)}${r2 + 1}`;
+                  }
+                  edit.TEXTAREA.value = cacheValue + selectRange;
+                  // edit.TEXTAREA.focus()
+                  // self.hot1.removeHook('afterSelectionEnd',selectCall)
+                  // self.hot1.selectCell(row, col);
+                  edit.TEXTAREA.ondblclick()
+                  self.hot1.addHook("beforeKeyDown", e => {
+                    e.stopImmediatePropagation();
+
+                    edit.TEXTAREA.value = edit.TEXTAREA.value + e.key;
+                  });
+                };
+                self.hot1.addHook("afterSelectionEnd", selectCall);
+              }
+            }
+          });
+        },
         afterChange: function(changes) {
           if (changes) {
             self.isEdit = true;
             self.$emit("whetherSave", self.isEdit, self.id);
-
-            // TODO: this select not for single target
-            const selectNode = document
-              .getElementsByTagName("tbody")[0]
-              .getElementsByTagName("tr")
-              [changes[0][0]].getElementsByTagName("td")[changes[0][1]];
-            const changeVal = changes[0][3];
-
-            // 'A3' => ['1','3']
-            const str2RowCol = str => {
-              let arr = str.match(/^([a-z]+)(\d+)/i);
-              return [arr[2] - 1, arr[1].charCodeAt(0) - 97];
-            };
-            const getParams = paramsStr => {
-              if (/\:/.test(paramsStr)) {
-                // TODO: /g
-                let cellArr = paramsStr.match(/([a-z]\d+)\:([a-z]\d+)/i);
-                console.log(cellArr);
-                return self.hot1.getData(
-                  +str2RowCol(cellArr[1])[0],
-                  str2RowCol(cellArr[1])[1],
-                  +str2RowCol(cellArr[2])[0],
-                  str2RowCol(cellArr[2])[1]
-                );
-              }
-            };
-
-            if (/^=/.test(changeVal)) {
-              let midVal;
-              let useFunc = /^=([A-Za-z]+)\(/.test(changeVal);
-              if (useFunc) {
-                // 使用命名函数
-                let func = changeVal.match(/^=([A-Za-z]+)\(/)[1];
-                const params = getParams(changeVal.match(/\((.*)\)/)[1]);
-                try {
-                  midVal = excelFunctions[func].func(params);
-                } catch (error) {
-                  console.log(error);
-                }
-              } else {
-                midVal = eval(
-                  changeVal
-                    .replace(/\=/, "")
-                    .replace(/([a-z]+)(\d+)/g, (match, $1, $2) => {
-                      return (
-                        self.hot1.getDataAtCell($1.charCodeAt(0) - 97, $2-1) || 0
-                      );
-                    })
-                );
-              }
-
-              selectNode.dataset.funcVal = changeVal;
-              // TODO: appendChild faild
-              // selectNode.appendChild(`<i>${+midVal}</i>`)
-            }
           }
         },
         // afterCreateCol: function() {
@@ -197,7 +252,6 @@ export default {
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
         afterContextMenuShow(context) {
-          console.log(this.getSelectedRange());
           self.firstSelectedRow = this.getSelectedRange()[0].from.row;
           self.firstSelectedCol = this.getSelectedRange()[0].from.col;
           self.lastSelectedRow = this.getSelectedRange()[0].to.row;
@@ -214,7 +268,6 @@ export default {
         },
         // 2018.4.2 new setting add
         beforeMergeCells(cellRange) {
-          console.log(cellRange.from);
           let rangeDataArr = self.hot1.getData(
             cellRange.from.row,
             cellRange.from.col,
@@ -233,8 +286,6 @@ export default {
           );
           this[Symbol.for("mergeData")] = data;
           // self.hot1.setDataAtCell(cellRange.from.row,cellRange.from.col, data)
-
-          console.log(data);
         },
         afterMergeCells(cellRange) {
           self.hot1.setDataAtCell(
@@ -575,7 +626,6 @@ export default {
       };
       this.saving = true;
       this.isEdit = false;
-      console.log(this.new);
       if (!this.new) {
         this.$service.updateTable(params).then(res => {
           if (res.responseCode == "0") {
@@ -835,10 +885,41 @@ export default {
     vertical-align: sub;
   }
 }
+td {
+  position: relative;
+  i {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    display: block;
+    font-style: normal;
+    background: #fff;
+  }
+}
 // .table-name .el-input__inner {
 //   border: none!important;
 //   text-align: center;
 //   // width: 60%;
 //   font-size: 18px;
 // }
+
+.block-important {
+  display: block !important;
+}
+.params-choosed {
+  position: relative;
+  &::after {
+    display: block;
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border: 1px dashed #000;
+  }
+}
 </style>
