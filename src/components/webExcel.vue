@@ -171,22 +171,15 @@ export default {
             edit.TEXTAREA.value = self.funcStore[`${row}-${col}`];
           }
 
-          edit.TEXTAREA.addEventListener("input", function() {
+          edit.TEXTAREA.addEventListener("input", function(e) {
+            console.log(e)
             if (/^=/.test(this.value)) {
               if (/[\=\(\+\-\*\/]\s*$/.test(this.value)) {
                 const cacheValue = edit.TEXTAREA.value;
                 // 开始单元格选择
-                // let _table = self.$el.getElementsByTagName("table")[0];
-                // _table.addEventListener("click", function(e) {
-                //   if (e.target.tagName === 'TD') {
-                //     console.log(edit)
-                //     edit.TEXTAREA_PARENT.style.display='block'
-                //     e.target.classList.add('params-choosed') // 选中样式
-                //     edit.TEXTAREA.value += e.target
-                //    }
-                // });
-                const selectCall = (r, c, r2, c2) => {
+                const selectCall = function(r, c, r2, c2) {
                   edit.TEXTAREA_PARENT.classList.add("block-important");
+                  console.log(r, c);
                   let selectRange;
                   if (r === r2 && c === c2) {
                     // 1格
@@ -198,15 +191,20 @@ export default {
                   }
                   edit.TEXTAREA.value = cacheValue + selectRange;
                   // edit.TEXTAREA.focus()
-                  // self.hot1.removeHook('afterSelectionEnd',selectCall)
-                  // self.hot1.selectCell(row, col);
-                  edit.TEXTAREA.ondblclick()
-                  self.hot1.addHook("beforeKeyDown", e => {
-                    e.stopImmediatePropagation();
-
-                    edit.TEXTAREA.value = edit.TEXTAREA.value + e.key;
-                  });
+                  self.funcStore[`${row}-${col}`] = cacheValue + selectRange;
+                  self.hot1.removeHook("afterSelectionEnd", selectCall);
+                  self.hot1.selectCell(row, col);
+                  self.hot1.addHook("afterSelectionEnd", selectCall);
+                  // self.hot1.addHook("beforeKeyDown", function(e) {
+                  //   self.hot1.removeHook("afterSelectionEnd", selectCall);
+                  //   edit.TEXTAREA_PARENT.classList.remove("block-important");
+                  // });
+                  // window.onkeydown = function() {
+                  //   console.log("key");
+                  //   self.hot1.removeHook("afterSelectionEnd", selectCall);
+                  // };
                 };
+
                 self.hot1.addHook("afterSelectionEnd", selectCall);
               }
             }
