@@ -67,6 +67,7 @@ export default {
   data() {
     var self = this;
     return {
+      drawStep: [],
       funcStore: {},
       funcCache: "",
       visible: false,
@@ -95,6 +96,7 @@ export default {
             ? JSON.parse(self.propTable.tableData)
             : self.propTable.tableData,
         mergeCells: true,
+        comments: true,
         colHeaders: true,
         rowHeaders: true,
         minCols: 1,
@@ -105,13 +107,7 @@ export default {
         // formulas: true,
         className: "htCenter htMiddle",
         beforeChange: function(changes, sourse) {
-          // TODO: this select not for single target
-          // const selectNode = document
-          //   .getElementsByTagName("tbody")[0]
-          //   .getElementsByTagName("tr")
-          //   [changes[0][0]].getElementsByTagName("td")[changes[0][1]];
           const changeVal = changes[0][3];
-
           // 'A3' => ['1','3']
           const str2RowCol = str => {
             let arr = str.match(/^([a-z]+)(\d+)/i);
@@ -143,16 +139,22 @@ export default {
                 console.log(error);
               }
             } else {
-              midVal = eval(
-                changeVal
-                  .replace(/\=/, "")
-                  .replace(/([a-z]+)(\d+)/g, (match, $1, $2) => {
-                    return (
-                      self.hot1.getDataAtCell($2 - 1, $1.charCodeAt(0) - 97) ||
-                      0
-                    );
-                  })
-              );
+              try {
+                midVal = eval(
+                  changeVal
+                    .replace(/\=/, "")
+                    .replace(/([a-z]+)(\d+)/g, (match, $1, $2) => {
+                      return (
+                        self.hot1.getDataAtCell(
+                          $2 - 1,
+                          $1.charCodeAt(0) - 97
+                        ) || 0
+                      );
+                    })
+                );
+              } catch (error) {
+                console.log(error);
+              }
             }
             // 修改输入值
             changes[0][3] = midVal;
@@ -167,48 +169,87 @@ export default {
         afterBeginEditing: function(row, col) {
           let data = self.hot1.getDataAtCell(row, col);
           let edit = self.hot1.getActiveEditor();
+          let editArea = edit.TEXTAREA;
           if (self.funcStore[`${row}-${col}`]) {
-            edit.TEXTAREA.value = self.funcStore[`${row}-${col}`];
+            editArea.value = self.funcStore[`${row}-${col}`];
           }
-
-          edit.TEXTAREA.addEventListener("input", function(e) {
-            console.log(e)
-            if (/^=/.test(this.value)) {
-              if (/[\=\(\+\-\*\/]\s*$/.test(this.value)) {
-                const cacheValue = edit.TEXTAREA.value;
-                // 开始单元格选择
-                const selectCall = function(r, c, r2, c2) {
-                  edit.TEXTAREA_PARENT.classList.add("block-important");
-                  console.log(r, c);
-                  let selectRange;
-                  if (r === r2 && c === c2) {
-                    // 1格
-                    selectRange = `${String.fromCharCode(c + 97)}${r + 1}`;
-                  } else {
-                    // 多格
-                    selectRange = `${String.fromCharCode(c + 97)}${r +
-                      1}:${String.fromCharCode(c2 + 97)}${r2 + 1}`;
-                  }
-                  edit.TEXTAREA.value = cacheValue + selectRange;
-                  // edit.TEXTAREA.focus()
-                  self.funcStore[`${row}-${col}`] = cacheValue + selectRange;
-                  self.hot1.removeHook("afterSelectionEnd", selectCall);
-                  self.hot1.selectCell(row, col);
-                  self.hot1.addHook("afterSelectionEnd", selectCall);
-                  // self.hot1.addHook("beforeKeyDown", function(e) {
-                  //   self.hot1.removeHook("afterSelectionEnd", selectCall);
-                  //   edit.TEXTAREA_PARENT.classList.remove("block-important");
-                  // });
-                  // window.onkeydown = function() {
-                  //   console.log("key");
-                  //   self.hot1.removeHook("afterSelectionEnd", selectCall);
-                  // };
-                };
-
-                self.hot1.addHook("afterSelectionEnd", selectCall);
-              }
+          let layerInput, cacheValue;
+          if(/^=/.test(editArea.value)){
+            self.drawFromInput(editArea);
+          }
+          self.hot1.removeHook("afterSelectionEnd", selectCall)
+          // 单元格选择
+          const selectCall = function(r, c, r2, c2) {
+            if (!/[\=\(\+\-\*\/]\s*$/.test(cacheValue)) {
+              console.log("not function");
+              return false;
             }
-          });
+
+            if (row >= r && row <= r2 && col >= c && col <= c2) {
+              console.log("range maxium");
+              return false;
+            }
+            let selectRange;
+            self.drawStep = [];
+            console.log(`r,c,r2,c2`)
+            console.log(r,c,r2,c2)
+            if (r === r2 && c === c2) {
+              // 1格
+              selectRange = `${String.fromCharCode(c + 97)}${r + 1}`;
+            } else {
+              // 多格
+              selectRange = `(${String.fromCharCode(c + 97)}${r +
+                1}:${String.fromCharCode(c2 + 97)}${r2 + 1})`;
+            }
+            layerInput.value = cacheValue + selectRange;
+            // edit.TEXTAREA.focus()
+            self.drawFromInput();
+            self.funcStore[`${row}-${col}`] = cacheValue + selectRange;
+            layerInput.focus();
+          };
+
+          const licenseInput = function(e) {
+            cacheValue = layerInput.value;
+          };
+
+          // 监听'='是否在输入框起始点
+          const licenseEqual = function(e) {
+            if (/^=/.test(this.value)) {
+              layerInput = self.drawInput(row, col, e.target, this.value);
+              layerInput.addEventListener("change", licenseInput);
+              window.addEventListener("mousedown", function(e) {
+                // blur
+                if (!e.path.some(ele => ele.id === self.idName)) {
+                  self.hot1.setDataAtCell(row, col, layerInput.value);
+                  self.quitFunctionEditor();
+                  self.hot1.removeHook("afterSelectionEnd", selectCall);
+                }
+              });
+              layerInput.addEventListener("keydown", function(e) {
+                // enter
+                if (
+                  e.keyCode === 13 &&
+                  !e.altKey &&
+                  !e.ctrlKey &&
+                  !e.shiftKey
+                ) {
+                  self.hot1.setDataAtCell(row, col, e.target.value);
+                  e.preventDefault();
+                  self.quitFunctionEditor();
+                  self.hot1.removeHook("afterSelectionEnd", selectCall);
+                }
+                // esc
+                if (e.keyCode === 27) {
+                  e.preventDefault();
+                  self.quitFunctionEditor();
+                  self.hot1.removeHook("afterSelectionEnd", selectCall);
+                }
+              });
+              cacheValue = layerInput.value;
+              self.hot1.addHook("afterSelectionEnd", selectCall);
+            }
+          };
+          editArea.addEventListener("input", licenseEqual);
         },
         afterChange: function(changes) {
           if (changes) {
@@ -216,37 +257,46 @@ export default {
             self.$emit("whetherSave", self.isEdit, self.id);
           }
         },
-        // afterCreateCol: function() {
-        //   self.isEdit = true
-        //   self.$emit('whetherSave', self.isEdit, self.id)
-        // },
-        // afterCreateRow: function() {
-        //   self.isEdit = true
-        //   self.$emit('whetherSave', self.isEdit, self.id)
-        // },
-        // afterRemoveCol: function() {
-        //   self.isEdit = true
-        //   self.$emit('whetherSave', self.isEdit, self.id)
-        // },
-        // afterRemoveRow: function() {
-        //   self.isEdit = true
-        //   self.$emit('whetherSave', self.isEdit, self.id)
-        // },
-        afterCopy: function(changes) {
+        afterCopy: function(changes, coords) {
+          // 缓存已合并的单元格
+          const mergedArr = self.hot1.getPlugin("MergeCells")
+            .mergedCellsCollection.mergedCells;
+          self.pasteMergeCache = [];
+          mergedArr.filter(ele => {
+            if (
+              ele.row >= coords[0].startRow &&
+              ele.col >= coords[0].startCol &&
+              coords[0].startRow + ele.rowspan - 1 <= coords[0].endRow &&
+              coords[0].startCol + ele.colspan - 1 <= coords[0].endCol
+            ) {
+              self.pasteMergeCache.push({
+                rowReduce: ele.row - coords[0].startRow,
+                colReduce: ele.col - coords[0].startCol,
+                rowspan: ele.rowspan,
+                colspan: ele.colspan
+              });
+              return true;
+            }
+          });
+
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
         afterCut: function(changes) {
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
         afterPaste: function(changes, coords) {
-          self.hot1
-            .getPlugin("MergeCells")
-            .merge(
-              coords[0].startRow,
-              coords[0].startCol,
-              coords[0].endRow,
-              coords[0].endCol
-            );
+          if (self.pasteMergeCache.length) {
+            self.pasteMergeCache.forEach(ele => {
+              self.hot1
+                .getPlugin("MergeCells")
+                .merge(
+                  coords[0].startRow + ele.rowReduce,
+                  coords[0].startCol + ele.colReduce,
+                  coords[0].startRow + ele.rowReduce + ele.rowspan - 1,
+                  coords[0].startCol + ele.colReduce + ele.colspan - 1
+                );
+            });
+          }
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
         afterContextMenuShow(context) {
@@ -273,6 +323,7 @@ export default {
             cellRange.to.col
           );
           let data;
+          console.log(rangeDataArr);
           rangeDataArr.some(ele =>
             ele.some(ele => {
               if (ele !== "") {
@@ -318,6 +369,81 @@ export default {
     }
   },
   methods: {
+    createCanvas(node) {
+      let Canvas = document.createElement("canvas");
+      let Input = document.createElement("textarea");
+      node.appendChild(Canvas);
+      node.insertBefore(Input, Canvas);
+      Input.classList.add("layer-input");
+      this.inputNode = Input;
+      this.canvasNode = Canvas;
+      return Canvas;
+    },
+    drawCanvas() {
+      let Canvas = this.canvasNode;
+      Canvas.width = Canvas.clientWidth;
+      Canvas.height = Canvas.clientHeight;
+      let ctx = Canvas.getContext("2d");
+      ctx.clearRect(0, 0, Canvas.width, Canvas.height);
+      this.drawStep.forEach(ele => {
+        ele.render(ctx);
+      });
+    },
+    drawInput(r, c, targetNode, value) {
+      let Input = this.inputNode;
+      Input.style.top = 25 + r * 23 + "px";
+      Input.style.left = 49 + c * 100 + "px";
+      Input.style.minWidth = targetNode.clientWidth + "px";
+      Input.style.minHeight = targetNode.clientHeight + "px";
+      Input.value = value;
+      Input.style.display = "block";
+      Input.focus();
+      return Input;
+    },
+    selectTd(r, c, r2, c2) {
+      this.drawStep.push({
+        render(ctx) {
+          ctx.strokeStyle = "#FFA500";
+          ctx.strokeRect(
+            49 + c * 100,
+            25 + r * 23,
+            (c2 - c + 1) * 100 + 1,
+            (r2 - r + 1) * 23 + 2
+          );
+        }
+      });
+    },
+    drawFromInput(node) {
+      const targetNode = node || this.inputNode;
+      try {
+        targetNode.value
+          .match(/(\([a-z]+\d+\:[a-z]+\d+\)|[a-z]+\d+)/gi)
+          .forEach(ele => {
+            if (/\:/.test(ele)) {
+              const c = ele.match(/[a-z]/g)[0].charCodeAt(0) - 97;
+              const c2 = ele.match(/[a-z]/g)[1].charCodeAt(0) - 97;
+              const r = ele.match(/\d+/g)[0] - 1;
+              const r2 = ele.match(/\d+/g)[1] - 1;
+              this.selectTd(r, c, r2, c2);
+            } else {
+              const c = ele.match(/[a-z]/g)[0].charCodeAt(0) - 97;
+              const r = ele.match(/\d+/g)[0] - 1;
+              this.selectTd(r, c, r, c);
+            }
+          });
+        this.drawCanvas();
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    quitFunctionEditor() {
+      this.drawStep = [];
+      let Canvas = this.canvasNode;
+      let ctx = Canvas.getContext("2d");
+      let Input = this.inputNode;
+      ctx.clearRect(0, 0, Canvas.width, Canvas.height);
+      Input.style.display = "none";
+    },
     changeCellType(type) {
       let self = this;
       for (var i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
@@ -666,6 +792,8 @@ export default {
   mounted() {
     var self = this;
     var webExcel = document.getElementById(`${this.idName}`);
+    let Canvas = this.createCanvas(webExcel);
+    this.canvas = Canvas;
     self.hot1 = new Handsontable(webExcel, self.hotSettings);
     self.hot1.updateSettings({
       contextMenu: {
@@ -919,5 +1047,35 @@ td {
     right: 0;
     border: 1px dashed #000;
   }
+}
+.hot {
+  canvas {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 2;
+    background: rgba(122, 20, 233, 0.1);
+    top: 0;
+    pointer-events: none;
+  }
+}
+.layer-input {
+  position: absolute;
+  z-index: 104;
+  border: none;
+  outline-width: 0;
+  margin: 0;
+  padding: 1px 5px 0 5px;
+  font-family: inherit;
+  line-height: 21px;
+  font-size: inherit;
+  box-shadow: 0 0 0 2px #5292f7 inset;
+  resize: none;
+  display: block;
+  color: #000;
+  border-radius: 0;
+  background-color: #fff;
+  font-size: 14px;
+  box-sizing: border-box !important;
 }
 </style>
