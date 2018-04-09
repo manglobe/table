@@ -84,12 +84,6 @@ export default {
       firstSelectedCol: "",
       lastSelectedRow: "",
       lastSelectedCol: "",
-      // function
-      funcSelect(v) {
-        // let selectItem = self.hot1.getSelect()
-        // selectItem
-        // console.log(excelFunctions[v].func());
-      },
       hotSettings: {
         data:
           typeof self.propTable.tableData === "string"
@@ -104,6 +98,18 @@ export default {
         maxCols: 15,
         colWidths: 100,
         height: 228,
+        outsideClickDeselects: eventTarget => {
+          if (
+            document
+              .getElementById(this.idName)
+              .parentNode.getElementsByClassName("function-select")[0]
+              .contains(eventTarget)
+          ) {
+            return false;
+          }
+          return true
+          
+        },
         // formulas: true,
         className: "htCenter htMiddle",
         beforeChange: function(changes, sourse) {
@@ -236,10 +242,10 @@ export default {
           self.licenseEqual = licenseEqual;
           editArea.addEventListener("input", licenseEqual);
         },
-        afterChange: function(changes,sourse) {
+        afterChange: function(changes, sourse) {
           self.editArea &&
             self.editArea.removeEventListener("input", self.licenseEqual);
-          if (sourse !== 'funcRender') {
+          if (sourse !== "funcRender") {
             self.funcRender();
           }
           if (changes) {
@@ -358,13 +364,26 @@ export default {
     }
   },
   methods: {
+    // function
+    funcSelect(v) {
+      let selectItem = this.hot1.getSelectedLast();
+      // selectItem
+      console.log(selectItem);
+      console.log(`selectItem`);
+      console.log(excelFunctions[v].func());
+    },
     funcRender() {
       // const _this = this
       for (const key in this.funcStore) {
         if (this.funcStore.hasOwnProperty(key)) {
           const element = this.funcStore[key];
           const coordsArr = key.match(/\d+/g);
-          this.hot1.setDataAtCell(+coordsArr[0], +coordsArr[1], element, 'funcRender');
+          this.hot1.setDataAtCell(
+            +coordsArr[0],
+            +coordsArr[1],
+            element,
+            "funcRender"
+          );
         }
       }
     },

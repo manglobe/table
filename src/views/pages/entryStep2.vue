@@ -7,6 +7,14 @@
 			<span class="step" @click="confirmGotoStep(4)"><span class="arrow"></span>4、分析结果</span>
 		</div>
 		<div class="button-wrapper">
+           <div class="creat-excel-btn">
+	        	<el-button @click="addTable">
+              	<i 
+							  style="font-size:16px;margin-right:10px"
+							  class="el-icon-plus"></i>
+              新增表格
+            </el-button>
+	        </div>	  
 		    <el-button
 			  size="large"
 			  @click="confirmGotoStep(1)">上一步</el-button>
@@ -16,9 +24,7 @@
 	    	  @click="confirmGotoStep(3)">下一步</el-button>
 	    </div>
 		<div class="entry-step-2">
-	        <div style="width: 95%;margin: 10px auto;">
-	        	<el-button @click="addTable">新增表格</el-button>
-	        </div>	
+	   
 <!-- 			
 				<cc v-bind:data="tableData">
 				</cc> -->
@@ -213,7 +219,32 @@ export default {
   overflow: hidden;
   height: auto !important;
 }
-.ht_clone_top .wtHolder, .ht_clone_bottom .wtHolder{
+.ht_clone_top .wtHolder,
+.ht_clone_bottom .wtHolder {
   overflow-x: hidden;
+}
+
+.button-wrapper {
+  .creat-excel-btn {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 168px;
+    left: 0;
+    border: none;
+
+    button {
+      background: #06aea6;
+      border: none;
+      border-radius: 0;
+      color: #fff;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      &:hover {
+        background: #68d1be;
+      }
+    }
+  }
 }
 </style>
