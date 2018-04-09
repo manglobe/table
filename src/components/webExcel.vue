@@ -154,6 +154,8 @@ export default {
                 );
               } catch (error) {
                 console.log(error);
+                alert("函数异常");
+                midVal = "";
               }
             }
             // 修改输入值
@@ -170,14 +172,16 @@ export default {
           let data = self.hot1.getDataAtCell(row, col);
           let edit = self.hot1.getActiveEditor();
           let editArea = edit.TEXTAREA;
+          self.editArea = editArea;
           if (self.funcStore[`${row}-${col}`]) {
             editArea.value = self.funcStore[`${row}-${col}`];
           }
           let layerInput, cacheValue;
-          if(/^=/.test(editArea.value)){
+          if (/^=/.test(editArea.value)) {
             self.drawFromInput(editArea);
+            self.drawInput(row, col, editArea, editArea.value);
           }
-          self.hot1.removeHook("afterSelectionEnd", selectCall)
+
           // 单元格选择
           const selectCall = function(r, c, r2, c2) {
             if (!/[\=\(\+\-\*\/]\s*$/.test(cacheValue)) {
@@ -191,8 +195,6 @@ export default {
             }
             let selectRange;
             self.drawStep = [];
-            console.log(`r,c,r2,c2`)
-            console.log(r,c,r2,c2)
             if (r === r2 && c === c2) {
               // 1格
               selectRange = `${String.fromCharCode(c + 97)}${r + 1}`;
@@ -214,44 +216,32 @@ export default {
 
           // 监听'='是否在输入框起始点
           const licenseEqual = function(e) {
+            editArea.removeEventListener("input", licenseEqual);
+            self.hot1.removeHook("afterSelectionEnd", selectCall);
+
             if (/^=/.test(this.value)) {
               layerInput = self.drawInput(row, col, e.target, this.value);
               layerInput.addEventListener("change", licenseInput);
-              window.addEventListener("mousedown", function(e) {
-                // blur
-                if (!e.path.some(ele => ele.id === self.idName)) {
-                  self.hot1.setDataAtCell(row, col, layerInput.value);
-                  self.quitFunctionEditor();
-                  self.hot1.removeHook("afterSelectionEnd", selectCall);
-                }
+
+              self.inputNode.row = row;
+              self.inputNode.col = col;
+              self.inputNode.quitCallbacks.push(() => {
+                self.hot1.removeHook("afterSelectionEnd", selectCall);
               });
-              layerInput.addEventListener("keydown", function(e) {
-                // enter
-                if (
-                  e.keyCode === 13 &&
-                  !e.altKey &&
-                  !e.ctrlKey &&
-                  !e.shiftKey
-                ) {
-                  self.hot1.setDataAtCell(row, col, e.target.value);
-                  e.preventDefault();
-                  self.quitFunctionEditor();
-                  self.hot1.removeHook("afterSelectionEnd", selectCall);
-                }
-                // esc
-                if (e.keyCode === 27) {
-                  e.preventDefault();
-                  self.quitFunctionEditor();
-                  self.hot1.removeHook("afterSelectionEnd", selectCall);
-                }
-              });
+
               cacheValue = layerInput.value;
               self.hot1.addHook("afterSelectionEnd", selectCall);
             }
           };
+          self.licenseEqual = licenseEqual;
           editArea.addEventListener("input", licenseEqual);
         },
-        afterChange: function(changes) {
+        afterChange: function(changes,sourse) {
+          self.editArea &&
+            self.editArea.removeEventListener("input", self.licenseEqual);
+          if (sourse !== 'funcRender') {
+            self.funcRender();
+          }
           if (changes) {
             self.isEdit = true;
             self.$emit("whetherSave", self.isEdit, self.id);
@@ -323,7 +313,6 @@ export default {
             cellRange.to.col
           );
           let data;
-          console.log(rangeDataArr);
           rangeDataArr.some(ele =>
             ele.some(ele => {
               if (ele !== "") {
@@ -369,15 +358,65 @@ export default {
     }
   },
   methods: {
+    funcRender() {
+      // const _this = this
+      for (const key in this.funcStore) {
+        if (this.funcStore.hasOwnProperty(key)) {
+          const element = this.funcStore[key];
+          const coordsArr = key.match(/\d+/g);
+          this.hot1.setDataAtCell(+coordsArr[0], +coordsArr[1], element, 'funcRender');
+        }
+      }
+    },
     createCanvas(node) {
       let Canvas = document.createElement("canvas");
-      let Input = document.createElement("textarea");
       node.appendChild(Canvas);
-      node.insertBefore(Input, Canvas);
+      this.canvasNode = Canvas;
+      this.createInput(node);
+      return Canvas;
+    },
+    createInput(node) {
+      let _this = this;
+      let Input = document.createElement("textarea");
       Input.classList.add("layer-input");
       this.inputNode = Input;
-      this.canvasNode = Canvas;
-      return Canvas;
+      node.insertBefore(Input, this.canvasNode);
+      Input.quitCallbacks = [];
+      const quitEditor = shouldSaveData => {
+        if (shouldSaveData) {
+          this.hot1.setDataAtCell(Input.row, Input.col, Input.value);
+        }
+        this.quitFunctionEditor();
+        if (Input.quitCallbacks) {
+          Input.quitCallbacks.forEach(ele => ele());
+        }
+      };
+
+      Input.addEventListener("keydown", function(e) {
+        // enter
+        if (e.keyCode === 13 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
+          e.preventDefault();
+          quitEditor(true);
+        }
+        // esc
+        if (e.keyCode === 27) {
+          e.preventDefault();
+          quitEditor();
+        }
+      });
+      const mousedownHandle = function(e) {
+        // blur
+        if (Input.style.display !== "block") {
+          return false;
+        }
+        if (!e.path.some(ele => ele.id === _this.idName)) {
+          quitEditor(true);
+        }
+      };
+      // Input.quitCallbacks.push(() =>
+      //   window.removeEventListener("mousedown", mousedownHandle)
+      // );
+      window.addEventListener("mousedown", mousedownHandle);
     },
     drawCanvas() {
       let Canvas = this.canvasNode;
@@ -637,7 +676,6 @@ export default {
       if (self.lastSelectedRow + 1 === rowLength) {
         self.hotSettings.data.push(new Array(colLength));
       }
-      // console.log(self.hotSettings.data)
       switch (formula) {
         case "add":
           for (let j = self.firstSelectedCol; j <= self.lastSelectedCol; j++) {
@@ -877,94 +915,6 @@ export default {
                   name: "百分比(保留两位小数)",
                   callback: function(key, options) {
                     self.changeCellType(4);
-                    self.hot1.render();
-                  }
-                }
-              ]
-            }
-          },
-          calculate: {
-            key: "calculation",
-            name: "计算",
-            submenu: {
-              items: [
-                {
-                  key: "calculation:addRow",
-                  name: "求行和",
-                  callback: function(key, options) {
-                    self.calculateRow("add");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:addCol",
-                  name: "求列和",
-                  callback: function(key, options) {
-                    self.calculateCol("add");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:subRow",
-                  name: "求行差",
-                  callback: function(key, options) {
-                    self.calculateRow("sub");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:subCol",
-                  name: "求列差",
-                  callback: function(key, options) {
-                    self.calculateCol("sub");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:mulRow",
-                  name: "求行积",
-                  callback: function(key, options) {
-                    self.calculateRow("mul");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:mulCol",
-                  name: "求列积",
-                  callback: function(key, options) {
-                    self.calculateCol("mul");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:divRow",
-                  name: "求行商",
-                  callback: function(key, options) {
-                    self.calculateRow("div");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:divCol",
-                  name: "求列商",
-                  callback: function(key, options) {
-                    self.calculateCol("div");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:averageRow",
-                  name: "求行平均值",
-                  callback: function(key, options) {
-                    self.calculateRow("average");
-                    self.hot1.render();
-                  }
-                },
-                {
-                  key: "calculation:averageCol",
-                  name: "求列平均值",
-                  callback: function(key, options) {
-                    self.calculateCol("average");
                     self.hot1.render();
                   }
                 }
