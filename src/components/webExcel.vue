@@ -1,12 +1,14 @@
 <template>
-    <div style="width: 1050px; margin: 0 auto; overflow: auto;position: relative;" v-if="!isDelete">
+    <div class="excel-wrap" ref="excelWrap" v-if="!isDelete">
+
         <!-- <el-input class="table-name" v-model='tableName'></el-input> -->
         <div class="btn-handle-2">
           <!-- <el-button 
             v-if="isEdit"
             type="text" 
             @click="editTable">编辑表</el-button> -->
-          <Funcs v-bind:changeHandle="funcSelect" />
+          <FakeSelect ref="funcSelect"  v-bind:changeHandle="funcSelect" v-bind:options="excelFunctionsOptions" name="公式"/>
+          <FakeSelect v-bind:changeHandle="funcSelect" v-bind:options="excelChartsOptions" name="插入图表"/>
           <el-button 
             type="text" 
             @click="saveTable"
@@ -41,8 +43,9 @@
             type="text" 
             @click="undoTable">取消</el-button> -->
         </div>
-        <div :id="idName" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
-    </div>
+        <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
+      </div>
+
 </template>
 
 <script>
@@ -51,10 +54,10 @@ import SheetClip from "sheetclip";
 import Calculation from "@/util/Calculation.js";
 import handleObject from "@/util/handleObject";
 import "handsontable-pro/dist/handsontable.full.css";
-import Funcs from "./excelFunc";
-import { excelFunctions } from "./excelFunctions";
+import FakeSelect from "./fakeSelect.vue";
+import { excelFunctions, excelCharts } from "./excelStaticData";
 export default {
-  components: { Funcs },
+  components: { FakeSelect },
   props: {
     id: {
       type: [String, Number],
@@ -67,6 +70,14 @@ export default {
   data() {
     var self = this;
     return {
+      excelFunctionsOptions: Object.keys(excelFunctions).map(ele => ({
+        value: ele,
+        label: excelFunctions[ele].name
+      })),
+      excelChartsOptions: Object.keys(excelCharts).map(ele => ({
+        value: ele,
+        label: excelCharts[ele].name
+      })),
       drawStep: [],
       funcStore: {},
       funcCache: "",
@@ -97,83 +108,82 @@ export default {
         minRows: 1,
         maxCols: 15,
         colWidths: 100,
-        height: 228,
         outsideClickDeselects: eventTarget => {
           if (
-            document
-              .getElementById(this.idName)
-              .parentNode.getElementsByClassName("function-select")[0]
-              .contains(eventTarget)
+            self.$refs.funcSelect.$refs.mySelect.contains(eventTarget) ||
+            self.$refs.excel.contains(eventTarget)
           ) {
             return false;
           }
-          return true
-          
+          return true;
         },
-        // formulas: true,
         className: "htCenter htMiddle",
         beforeChange: function(changes, sourse) {
           const changeVal = changes[0][3];
-          // 'A3' => ['1','3']
-          const str2RowCol = str => {
-            let arr = str.match(/^([a-z]+)(\d+)/i);
-            return [arr[2] - 1, arr[1].charCodeAt(0) - 97];
-          };
-          const getParams = paramsStr => {
-            if (/\:/.test(paramsStr)) {
-              // TODO: /g
-              let cellArr = paramsStr.match(/([a-z]\d+)\:([a-z]\d+)/i);
-              return self.hot1.getData(
-                +str2RowCol(cellArr[1])[0],
-                str2RowCol(cellArr[1])[1],
-                +str2RowCol(cellArr[2])[0],
-                str2RowCol(cellArr[2])[1]
-              );
+          // 控制函数存储器
+          const controlStore = (key, value) => {
+            const STORE = self.funcStore;
+            if (value === undefined && !STORE[key]) {
+              return;
             }
+            if (value === false) {
+              STORE[key] = null;
+              return;
+            }
+            STORE[key] = changeVal;
           };
-
-          if (/^=/.test(changeVal)) {
-            let midVal;
-            let useFunc = /^=([A-Za-z]+)\(/.test(changeVal);
-            if (useFunc) {
-              // 使用命名函数
-              let func = changeVal.match(/^=([A-Za-z]+)\(/)[1];
-              const params = getParams(changeVal.match(/\((.*)\)/)[1]);
+          // 提取命名函数
+          const filterNameFunc = value => {
+            let midVal = value;
+            Object.keys(excelFunctions).forEach(ele => {
+              if (midVal.indexOf(ele) > 0) {
+                let reg = new RegExp(`${ele}\\((.*?)\\)`, "g");
+                midVal = midVal.replace(reg, (match, $1, $2) => {
+                  return excelFunctions[ele].func($1, $2);
+                });
+              }
+            });
+            return midVal;
+          };
+          // 计算
+          const computeValue = value => {
+            controlStore([`${changes[0][0]}-${changes[0][1]}`], value);
+            if (/^=/.test(value)) {
+              let newVal = filterNameFunc(value);
               try {
-                midVal = excelFunctions[func].func(params);
+                let expression = newVal
+                  .replace(/\=/, "")
+                  .replace(/([a-z]+)(\d+)/g, (match, $1, $2) => {
+                    return (
+                      self.hot1.getDataAtCell($2 - 1, $1.charCodeAt(0) - 97) ||
+                      0
+                    );
+                  });
+                newVal = eval(expression);
               } catch (error) {
                 console.log(error);
+                if (sourse !== "funcRender") {
+                  // alert("函数异常");
+                  // self.$alert("请检查表达式是否正常", "函数表达式异常", {
+                  //   confirmButtonText: "确定",
+                  //   callback: action => {
+                  //     self.$message({
+                  //       type: "info",
+                  //       message: `action: ${action}`
+                  //     });
+                  //   }
+                  // });
+                }
+                newVal = "#VAlUE!";
+                // controlStore([`${changes[0][0]}-${changes[0][1]}`], false);
               }
-            } else {
-              try {
-                midVal = eval(
-                  changeVal
-                    .replace(/\=/, "")
-                    .replace(/([a-z]+)(\d+)/g, (match, $1, $2) => {
-                      return (
-                        self.hot1.getDataAtCell(
-                          $2 - 1,
-                          $1.charCodeAt(0) - 97
-                        ) || 0
-                      );
-                    })
-                );
-              } catch (error) {
-                console.log(error);
-                alert("函数异常");
-                midVal = "";
-              }
+              // 修改输入值
+              changes[0][3] = newVal;
             }
-            // 修改输入值
-            changes[0][3] = midVal;
-            // 存储函数
-            self.funcStore[`${changes[0][0]}-${changes[0][1]}`] = changeVal;
-          } else {
-            // 清空存储
-            self.funcStore[`${changes[0][0]}-${changes[0][1]}`] &&
-              (self.funcStore[`${changes[0][0]}-${changes[0][1]}`] = null);
-          }
+          };
+          computeValue(changeVal);
         },
+
         afterBeginEditing: function(row, col) {
           let data = self.hot1.getDataAtCell(row, col);
           let edit = self.hot1.getActiveEditor();
@@ -182,69 +192,10 @@ export default {
           if (self.funcStore[`${row}-${col}`]) {
             editArea.value = self.funcStore[`${row}-${col}`];
           }
-          let layerInput, cacheValue;
-          if (/^=/.test(editArea.value)) {
-            self.drawFromInput(editArea);
-            self.drawInput(row, col, editArea, editArea.value);
-          }
 
-          // 单元格选择
-          const selectCall = function(r, c, r2, c2) {
-            if (!/[\=\(\+\-\*\/]\s*$/.test(cacheValue)) {
-              console.log("not function");
-              return false;
-            }
-
-            if (row >= r && row <= r2 && col >= c && col <= c2) {
-              console.log("range maxium");
-              return false;
-            }
-            let selectRange;
-            self.drawStep = [];
-            if (r === r2 && c === c2) {
-              // 1格
-              selectRange = `${String.fromCharCode(c + 97)}${r + 1}`;
-            } else {
-              // 多格
-              selectRange = `(${String.fromCharCode(c + 97)}${r +
-                1}:${String.fromCharCode(c2 + 97)}${r2 + 1})`;
-            }
-            layerInput.value = cacheValue + selectRange;
-            // edit.TEXTAREA.focus()
-            self.drawFromInput();
-            self.funcStore[`${row}-${col}`] = cacheValue + selectRange;
-            layerInput.focus();
-          };
-
-          const licenseInput = function(e) {
-            cacheValue = layerInput.value;
-          };
-
-          // 监听'='是否在输入框起始点
-          const licenseEqual = function(e) {
-            editArea.removeEventListener("input", licenseEqual);
-            self.hot1.removeHook("afterSelectionEnd", selectCall);
-
-            if (/^=/.test(this.value)) {
-              layerInput = self.drawInput(row, col, e.target, this.value);
-              layerInput.addEventListener("change", licenseInput);
-
-              self.inputNode.row = row;
-              self.inputNode.col = col;
-              self.inputNode.quitCallbacks.push(() => {
-                self.hot1.removeHook("afterSelectionEnd", selectCall);
-              });
-
-              cacheValue = layerInput.value;
-              self.hot1.addHook("afterSelectionEnd", selectCall);
-            }
-          };
-          self.licenseEqual = licenseEqual;
-          editArea.addEventListener("input", licenseEqual);
+          self.drawInput(row, col, editArea, editArea.value);
         },
         afterChange: function(changes, sourse) {
-          self.editArea &&
-            self.editArea.removeEventListener("input", self.licenseEqual);
           if (sourse !== "funcRender") {
             self.funcRender();
           }
@@ -367,10 +318,13 @@ export default {
     // function
     funcSelect(v) {
       let selectItem = this.hot1.getSelectedLast();
-      // selectItem
-      console.log(selectItem);
-      console.log(`selectItem`);
-      console.log(excelFunctions[v].func());
+      this.drawInput(
+        selectItem[0],
+        selectItem[1],
+        this.hot1.getCell(selectItem[0], selectItem[1]),
+        `=${v.toUpperCase()}(`,
+        true
+      );
     },
     funcRender() {
       // const _this = this
@@ -394,6 +348,17 @@ export default {
       this.createInput(node);
       return Canvas;
     },
+    quitEditor(shouldSaveData) {
+      const Input = this.inputNode;
+      if (shouldSaveData) {
+        this.hot1.setDataAtCell(Input.row, Input.col, Input.value);
+      }
+      this.quitFunctionEditor();
+      this.hot1.destroyEditor();
+      if (Input.quitCallbacks) {
+        Input.quitCallbacks.forEach(ele => ele());
+      }
+    },
     createInput(node) {
       let _this = this;
       let Input = document.createElement("textarea");
@@ -401,42 +366,20 @@ export default {
       this.inputNode = Input;
       node.insertBefore(Input, this.canvasNode);
       Input.quitCallbacks = [];
-      const quitEditor = shouldSaveData => {
-        if (shouldSaveData) {
-          this.hot1.setDataAtCell(Input.row, Input.col, Input.value);
-        }
-        this.quitFunctionEditor();
-        if (Input.quitCallbacks) {
-          Input.quitCallbacks.forEach(ele => ele());
-        }
-      };
-
       Input.addEventListener("keydown", function(e) {
         // enter
         if (e.keyCode === 13 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
           e.preventDefault();
-          quitEditor(true);
+          _this.quitEditor(true);
         }
         // esc
         if (e.keyCode === 27) {
           e.preventDefault();
-          quitEditor();
+          _this.quitEditor();
         }
       });
-      const mousedownHandle = function(e) {
-        // blur
-        if (Input.style.display !== "block") {
-          return false;
-        }
-        if (!e.path.some(ele => ele.id === _this.idName)) {
-          quitEditor(true);
-        }
-      };
-      // Input.quitCallbacks.push(() =>
-      //   window.removeEventListener("mousedown", mousedownHandle)
-      // );
-      window.addEventListener("mousedown", mousedownHandle);
     },
+
     drawCanvas() {
       let Canvas = this.canvasNode;
       Canvas.width = Canvas.clientWidth;
@@ -447,17 +390,128 @@ export default {
         ele.render(ctx);
       });
     },
-    drawInput(r, c, targetNode, value) {
+
+    drawInput(row, col, targetNode, value, startEdit) {
       let Input = this.inputNode;
-      Input.style.top = 25 + r * 23 + "px";
-      Input.style.left = 49 + c * 100 + "px";
-      Input.style.minWidth = targetNode.clientWidth + "px";
-      Input.style.minHeight = targetNode.clientHeight + "px";
+      Input.style.top = 25 + row * 23 + "px";
+      Input.style.left = 49 + col * 100 + "px";
+      Input.style.width = targetNode.clientWidth + 2 + "px";
+      Input.style.height = targetNode.clientHeight + 1 + "px";
       Input.value = value;
+      // this.drawFromInput();
+      Input.row = row;
+      Input.col = col;
       Input.style.display = "block";
       Input.focus();
+      // 存储原始值
+      let cacheValue = value;
+
+      const selectRange = (r, c, r2, c2) => {
+        let midStr;
+        if (r === r2 && c === c2) {
+          // 1格
+          midStr = `${String.fromCharCode(c + 97)}${r + 1}`;
+        } else {
+          // 多格
+          midStr = `${String.fromCharCode(Math.min(c, c2) + 97)}${Math.min(
+            r,
+            r2
+          ) + 1}:${String.fromCharCode(Math.max(c, c2) + 97)}${Math.max(r, r2) +
+            1}`;
+        }
+        return midStr;
+      };
+
+      // 单元格选择函数
+      const selectCall = (r, c, r2, c2) => {
+        let selectStr, selectBeforeStr, selectEndStr;
+
+        selectBeforeStr = Input.value.slice(0, Input.selectionStart);
+        selectEndStr = Input.value.slice(Input.selectionEnd);
+
+        //  光标位置检测
+        if (!Input.selectionStart === Input.selectionEnd) {
+          selectStr = Input.value.slice(
+            Input.selectionStart,
+            Input.selectionEnd
+          );
+          if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)/.test(selectStr)) {
+            selectCall.callback = str => {
+              Input.value = selectBeforeStr + str + selectEndStr;
+            };
+          }
+        } else {
+          if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/.test(selectBeforeStr)) {
+            let localSelectedRange = selectBeforeStr.match(
+              /([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/
+            )[0];
+            let reg = new RegExp(localSelectedRange + "$");
+            selectCall.callback = str => {
+              Input.value = selectBeforeStr.replace(reg, str) + selectEndStr;
+            };
+          }
+
+          if (
+            /[\*\/\-\+\(\:)]{1}$/.test(selectBeforeStr) ||
+            /^\=$/.test(selectBeforeStr)
+          ) {
+            selectCall.callback = str => {
+              Input.value = selectBeforeStr + str + selectEndStr;
+            };
+          }
+        }
+
+        this.drawStep = [];
+        let selectedRangeStr = selectRange(r, c, r2, c2);
+        selectCall.callback && selectCall.callback(selectedRangeStr);
+        this.drawFromInput();
+
+        Input.focus();
+      };
+
+      // 检测是否进入选择模式
+      const checkToStartSelect = () => {
+        Input.isSelecting = false;
+        this.hot1.removeHook("afterSelectionEnd", selectCall);
+        Input.style.height = Input.scrollHeight + 4 + "px";
+        if (!/^=/.test(Input.value)) {
+          return false;
+        }
+        Input.isSelecting = true;
+        this.hot1.addHook("afterSelectionEnd", selectCall);
+        // 编辑器的'退出回掉'中注入'清除选择单元格'的监听函数
+        Input.quitCallbacks.push(() => {
+          Input.isSelecting = false;
+          this.hot1.removeHook("afterSelectionEnd", selectCall);
+        });
+      };
+      if (startEdit) {
+        checkToStartSelect();
+      } else {
+        this.drawFromInput();
+      }
+
+      Input.addEventListener("input", checkToStartSelect);
+      // this.hot1.setDataAtCell(r,c,Input.value)
+      const clickHandle = e => {
+        // blur
+        if (Input.style.display !== "block") {
+          return false;
+        }
+        if (!(e.target === Input) && !Input.isSelecting) {
+          // if (!this.$refs.excel.contains(e.target)) {
+          this.quitEditor(true);
+        }
+      };
+
+      Input.quitCallbacks.push(() =>
+        window.removeEventListener("click", clickHandle)
+      );
+
+      setTimeout(() => window.addEventListener("click", clickHandle));
       return Input;
     },
+
     selectTd(r, c, r2, c2) {
       this.drawStep.push({
         render(ctx) {
@@ -471,11 +525,11 @@ export default {
         }
       });
     },
-    drawFromInput(node) {
-      const targetNode = node || this.inputNode;
+    drawFromInput() {
+      // const targetNode = node || this.inputNode;
       try {
-        targetNode.value
-          .match(/(\([a-z]+\d+\:[a-z]+\d+\)|[a-z]+\d+)/gi)
+        this.inputNode.value
+          .match(/([a-z]+\d+\:[a-z]+\d+|[a-z]+\d+)/gi)
           .forEach(ele => {
             if (/\:/.test(ele)) {
               const c = ele.match(/[a-z]/g)[0].charCodeAt(0) - 97;
@@ -965,6 +1019,20 @@ export default {
 </script>
 
 <style rel="stylesheet/scss" lang="scss">
+.excel-wrap {
+  width: 95%;
+  margin: 0 auto;
+  margin-top: 30px;
+  padding: 60px 30px 30px;
+  background: #ffffff;
+  box-sizing: border-box;
+  position: relative;
+  & > div {
+    width: 1050px;
+    margin: 0 auto;
+  }
+}
+
 #hot-display-license-info {
   display: none;
 }
@@ -1023,12 +1091,14 @@ td {
     height: 100%;
     position: absolute;
     z-index: 2;
-    background: rgba(122, 20, 233, 0.1);
+    // background: rgba(122, 20, 233, 0.1);
     top: 0;
+    left: 0;
     pointer-events: none;
   }
 }
 .layer-input {
+  display: none;
   position: absolute;
   z-index: 104;
   border: none;
@@ -1038,13 +1108,14 @@ td {
   font-family: inherit;
   line-height: 21px;
   font-size: inherit;
-  box-shadow: 0 0 0 2px #5292f7 inset;
+  box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.6);
+  border: 2px solid rgb(82, 146, 247);
   resize: none;
-  display: block;
   color: #000;
   border-radius: 0;
   background-color: #fff;
   font-size: 14px;
   box-sizing: border-box !important;
+  overflow: hidden;
 }
 </style>

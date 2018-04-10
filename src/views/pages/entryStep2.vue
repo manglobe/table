@@ -169,10 +169,8 @@ export default {
     margin: 13px auto;
   }
   .indicator-table {
-    width: 95%;
-    margin: 0 auto;
-    background: #fff;
-    overflow: overlay;
+    // width: 95%;
+    // margin: 0 auto;
   }
   .el-icon-information {
     margin-left: 20px;
@@ -214,15 +212,15 @@ export default {
   z-index: 2000 !important;
 }
 // 2018.4.2 new recover style
-.handsontable,
-.ht_master .wtHolder {
-  overflow: hidden;
+.hot .ht_master>.wtHolder {
+  overflow-y: hidden;
   height: auto !important;
+  width: 1050px !important;
 }
-.ht_clone_top .wtHolder,
-.ht_clone_bottom .wtHolder {
-  overflow-x: hidden;
-}
+// .ht_clone_top .wtHolder,
+// .ht_clone_bottom .wtHolder {
+//   overflow-x: hidden;
+// }
 
 .button-wrapper {
   .creat-excel-btn {

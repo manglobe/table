@@ -1,17 +1,7 @@
 <template>
-<!-- todo: radio -->
-  <!-- <el-select class="function-select" popper-class="function-option" v-model="value" placeholder="公式" @change="changeHandle">
-    <el-option
-      v-for="item in options"
-      :key="item.value"
-      :label="item.label"
-      :value="item.value">
-    </el-option>
-  </el-select> -->
-  <div class="function-select" @click="toggleOptions()">
-    <span>公式</span>
+  <div class="fake-select" v-bind:class="{active:showOptions}" @click="toggleOptions()" ref="mySelect">
+    <span>{{name}}</span>
     <i class="el-icon-arrow-down" ></i>
-    <!-- todo: active icon class -->
     <ul v-if="showOptions">
       <li v-for="item in options" :key="item.index" @click="changeHandle(item.value)">
         {{item.label}}
@@ -21,29 +11,35 @@
 </template>
 
 <script>
-import { excelFunctions } from "./excelFunctions";
-
 export default {
-  props: ["changeHandle"],
+  props: ["changeHandle", "options", "name"],
   data() {
     return {
-      showOptions: false,
-      value: "",
-      options: Object.keys(excelFunctions).map(ele => ({
-        value: ele,
-        label: excelFunctions[ele].name
-      }))
+      showOptions: false
     };
   },
   methods: {
-    toggleOptions() {
+    toggleOptions(bool) {
+      if (bool !== undefined) {
+        this.showOptions = bool;
+        return;
+      }
       this.showOptions = !this.showOptions;
     }
+  },
+  mounted() {
+    const _this = this;
+    const thisNode = _this.$refs.mySelect;
+    window.addEventListener("click", function(e) {
+      if (!thisNode.contains(e.target)) {
+        _this.toggleOptions(false);
+      }
+    });
   }
 };
 </script>
 <style rel="stylesheet/scss" lang="scss">
-.function-select {
+.fake-select {
   display: inline-block;
   position: relative;
   padding-right: 20px;
@@ -53,6 +49,8 @@ export default {
   font-family: PingFangSC-Regular;
   font-size: 14px;
   color: #333333;
+  margin: 0 15px; 
+  cursor: pointer;
   &::before {
     content: "";
     width: 12px;
@@ -65,6 +63,12 @@ export default {
     bottom: 0;
     margin: auto;
     left: 0;
+    box-sizing: border-box;
+  }
+  &.active {
+    &::before {
+      border: 4px solid #06aea6;
+    }
   }
   .el-icon-arrow-down {
     position: absolute;
@@ -116,6 +120,7 @@ export default {
       height: 36px;
       font-size: 12px;
       line-height: 36px;
+      white-space: nowrap;
       &:hover {
         background: #fffbe0;
       }
