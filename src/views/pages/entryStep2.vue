@@ -24,10 +24,6 @@
 	    	  @click="confirmGotoStep(3)">下一步</el-button>
 	    </div>
 		<div class="entry-step-2">
-	   
-<!-- 			
-				<cc v-bind:data="tableData">
-				</cc> -->
 			
 	        <div class="indicator-table">
 	            <web-excel 
@@ -62,12 +58,9 @@
 import service from "@/service/service";
 // import handleObject from "@/util/handleObject";
 import webExcel from "@/components/webExcel";
-import cc from "@/components/table";
-
 export default {
   components: {
     webExcel,
-    cc
   },
   data() {
     return {
