@@ -132,14 +132,29 @@ export default {
             }
             STORE[key] = changeVal;
           };
+          // 补全括号
+          const bracketsComplete = str => {
+            let pre = str.match(/\(/g) ? str.match(/\(/g).length : 0;
+            let next = str.match(/\)/g) ? str.match(/\)/g).length : 0;
+            if (pre - next > 0) {
+              for (let i = 0; i < pre - next; i++) {
+                str += ")";
+              }
+            }
+            return str;
+          };
           // 提取命名函数
           const filterNameFunc = value => {
             let midVal = value;
             Object.keys(excelFunctions).forEach(ele => {
-              if (midVal.indexOf(ele) > 0) {
-                let reg = new RegExp(`${ele}\\((.*?)\\)`, "g");
-                midVal = midVal.replace(reg, (match, $1, $2) => {
-                  return excelFunctions[ele].func($1, $2);
+              if (midVal.toUpperCase().indexOf(ele) > 0) {
+                let reg = new RegExp(
+                  `${ele}\\((\\(.*?\\)|[^\\(\\)])*\\)?`,
+                  "g"
+                );
+                // let reg = new RegExp(`${ele}\\((.*?)\\)`, "g");
+                midVal = midVal.replace(reg, match => {
+                  return excelFunctions[ele].func(match);
                 });
               }
             });
@@ -149,14 +164,16 @@ export default {
           const computeValue = value => {
             controlStore([`${changes[0][0]}-${changes[0][1]}`], value);
             if (/^=/.test(value)) {
-              let newVal = filterNameFunc(value);
+              let newVal = filterNameFunc(bracketsComplete(value));
               try {
                 let expression = newVal
                   .replace(/\=/, "")
-                  .replace(/([a-z]+)(\d+)/g, (match, $1, $2) => {
+                  .replace(/([a-z]+)(\d+)/gi, (match, $1, $2) => {
                     return (
-                      self.hot1.getDataAtCell($2 - 1, $1.charCodeAt(0) - 97) ||
-                      0
+                      self.hot1.getDataAtCell(
+                        $2 - 1,
+                        $1.toUpperCase().charCodeAt(0) - 65
+                      ) || 0
                     );
                   });
                 newVal = eval(expression);
@@ -192,8 +209,16 @@ export default {
           if (self.funcStore[`${row}-${col}`]) {
             editArea.value = self.funcStore[`${row}-${col}`];
           }
-
+          const inputHandle = () => {
+            if (/^\=/.test(editArea.value)) {
+              self.drawInput(row, col, editArea, editArea.value);
+            }
+          };
+          // editArea.removeEventListener("input", inputHandle);
+          // editArea.addEventListener("input", inputHandle);
+          // if (/^\=/.test(editArea.value)) {
           self.drawInput(row, col, editArea, editArea.value);
+          // }
         },
         afterChange: function(changes, sourse) {
           if (sourse !== "funcRender") {
@@ -263,24 +288,23 @@ export default {
         },
         // 2018.4.2 new setting add
         beforeMergeCells(cellRange) {
-          let rangeDataArr = self.hot1.getData(
-            cellRange.from.row,
-            cellRange.from.col,
-            cellRange.to.row,
-            cellRange.to.col
-          );
-          let data;
-          rangeDataArr.some(ele =>
-            ele.some(ele => {
-              if (ele !== "") {
-                data = ele;
-                return true;
-              }
-              return false;
-            })
-          );
-          this[Symbol.for("mergeData")] = data;
-          // self.hot1.setDataAtCell(cellRange.from.row,cellRange.from.col, data)
+          // let rangeDataArr = self.hot1.getData(
+          //   cellRange.from.row,
+          //   cellRange.from.col,
+          //   cellRange.to.row,
+          //   cellRange.to.col
+          // );
+          // let data;
+          // rangeDataArr.some(ele =>
+          //   ele.some(ele => {
+          //     if (ele !== "") {
+          //       data = ele;
+          //       return true;
+          //     }
+          //     return false;
+          //   })
+          // );
+          // this[Symbol.for("mergeData")] = data;
         },
         afterMergeCells(cellRange) {
           self.hot1.setDataAtCell(
@@ -317,7 +341,13 @@ export default {
   methods: {
     // function
     funcSelect(v) {
-      let selectItem = this.hot1.getSelectedLast();
+      let selectItem;
+      const Input = this.inputNode;
+      if (Input.style.display === "block") {
+        selectItem = [Input.row, Input.col];
+      } else {
+        selectItem = this.hot1.getSelectedLast();
+      }
       this.drawInput(
         selectItem[0],
         selectItem[1],
@@ -354,10 +384,13 @@ export default {
         this.hot1.setDataAtCell(Input.row, Input.col, Input.value);
       }
       this.quitFunctionEditor();
-      this.hot1.destroyEditor();
+      // this.hot1.destroyEditor();
       if (Input.quitCallbacks) {
         Input.quitCallbacks.forEach(ele => ele());
       }
+      setTimeout(()=>{
+        this.hot1.selectCell(Input.row, Input.col, Input.row, Input.col);
+      })
     },
     createInput(node) {
       let _this = this;
@@ -378,16 +411,22 @@ export default {
           _this.quitEditor();
         }
       });
+      Input.addEventListener("input", this.drawFromInput);
+      Input.changeVal = value => {
+        Input.value = value;
+        this.drawFromInput();
+      };
     },
 
     drawCanvas() {
+      const colorArr=['#71a1e6','#008000','#9900cc','#800000','#00cc33','#c60','#c09']
       let Canvas = this.canvasNode;
       Canvas.width = Canvas.clientWidth;
       Canvas.height = Canvas.clientHeight;
       let ctx = Canvas.getContext("2d");
       ctx.clearRect(0, 0, Canvas.width, Canvas.height);
-      this.drawStep.forEach(ele => {
-        ele.render(ctx);
+      this.drawStep.forEach((ele, index) => {
+        ele.render(ctx,colorArr[index%7]);
       });
     },
 
@@ -397,7 +436,7 @@ export default {
       Input.style.left = 49 + col * 100 + "px";
       Input.style.width = targetNode.clientWidth + 2 + "px";
       Input.style.height = targetNode.clientHeight + 1 + "px";
-      Input.value = value;
+      Input.changeVal(value);
       // this.drawFromInput();
       Input.row = row;
       Input.col = col;
@@ -405,18 +444,17 @@ export default {
       Input.focus();
       // 存储原始值
       let cacheValue = value;
-
       const selectRange = (r, c, r2, c2) => {
         let midStr;
         if (r === r2 && c === c2) {
           // 1格
-          midStr = `${String.fromCharCode(c + 97)}${r + 1}`;
+          midStr = `${String.fromCharCode(c + 65)}${r + 1}`;
         } else {
           // 多格
-          midStr = `${String.fromCharCode(Math.min(c, c2) + 97)}${Math.min(
+          midStr = `${String.fromCharCode(Math.min(c, c2) + 65)}${Math.min(
             r,
             r2
-          ) + 1}:${String.fromCharCode(Math.max(c, c2) + 97)}${Math.max(r, r2) +
+          ) + 1}:${String.fromCharCode(Math.max(c, c2) + 65)}${Math.max(r, r2) +
             1}`;
         }
         return midStr;
@@ -425,7 +463,6 @@ export default {
       // 单元格选择函数
       const selectCall = (r, c, r2, c2) => {
         let selectStr, selectBeforeStr, selectEndStr;
-
         selectBeforeStr = Input.value.slice(0, Input.selectionStart);
         selectEndStr = Input.value.slice(Input.selectionEnd);
 
@@ -437,7 +474,7 @@ export default {
           );
           if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)/.test(selectStr)) {
             selectCall.callback = str => {
-              Input.value = selectBeforeStr + str + selectEndStr;
+              Input.changeVal(selectBeforeStr + str + selectEndStr);
             };
           }
         } else {
@@ -447,7 +484,7 @@ export default {
             )[0];
             let reg = new RegExp(localSelectedRange + "$");
             selectCall.callback = str => {
-              Input.value = selectBeforeStr.replace(reg, str) + selectEndStr;
+              Input.changeVal(selectBeforeStr.replace(reg, str) + selectEndStr);
             };
           }
 
@@ -456,16 +493,13 @@ export default {
             /^\=$/.test(selectBeforeStr)
           ) {
             selectCall.callback = str => {
-              Input.value = selectBeforeStr + str + selectEndStr;
+              Input.changeVal(selectBeforeStr + str + selectEndStr);
             };
           }
         }
 
-        this.drawStep = [];
         let selectedRangeStr = selectRange(r, c, r2, c2);
         selectCall.callback && selectCall.callback(selectedRangeStr);
-        this.drawFromInput();
-
         Input.focus();
       };
 
@@ -488,7 +522,7 @@ export default {
       if (startEdit) {
         checkToStartSelect();
       } else {
-        this.drawFromInput();
+        // this.drawFromInput();
       }
 
       Input.addEventListener("input", checkToStartSelect);
@@ -514,8 +548,8 @@ export default {
 
     selectTd(r, c, r2, c2) {
       this.drawStep.push({
-        render(ctx) {
-          ctx.strokeStyle = "#FFA500";
+        render(ctx,color) {
+          ctx.strokeStyle = color;
           ctx.strokeRect(
             49 + c * 100,
             25 + r * 23,
@@ -527,18 +561,34 @@ export default {
     },
     drawFromInput() {
       // const targetNode = node || this.inputNode;
+      if (!/^=/.test(this.inputNode.value)) {
+        return false;
+      }
+      this.drawStep=[]
       try {
         this.inputNode.value
           .match(/([a-z]+\d+\:[a-z]+\d+|[a-z]+\d+)/gi)
           .forEach(ele => {
             if (/\:/.test(ele)) {
-              const c = ele.match(/[a-z]/g)[0].charCodeAt(0) - 97;
-              const c2 = ele.match(/[a-z]/g)[1].charCodeAt(0) - 97;
+              const c =
+                ele
+                  .match(/[a-z]/gi)[0]
+                  .toUpperCase()
+                  .charCodeAt(0) - 65;
+              const c2 =
+                ele
+                  .match(/[a-z]/gi)[1]
+                  .toUpperCase()
+                  .charCodeAt(0) - 65;
               const r = ele.match(/\d+/g)[0] - 1;
               const r2 = ele.match(/\d+/g)[1] - 1;
               this.selectTd(r, c, r2, c2);
             } else {
-              const c = ele.match(/[a-z]/g)[0].charCodeAt(0) - 97;
+              const c =
+                ele
+                  .match(/[a-z]/gi)[0]
+                  .toUpperCase()
+                  .charCodeAt(0) - 65;
               const r = ele.match(/\d+/g)[0] - 1;
               this.selectTd(r, c, r, c);
             }
@@ -555,6 +605,7 @@ export default {
       let Input = this.inputNode;
       ctx.clearRect(0, 0, Canvas.width, Canvas.height);
       Input.style.display = "none";
+      Input.value= '';
     },
     changeCellType(type) {
       let self = this;
@@ -928,10 +979,10 @@ export default {
             name: "删除列"
           },
           mergeCells: {
-            name: function name() {
+            name() {
               let sel = this.getSelectedLast();
               if (sel) {
-                var info = this.getPlugin(
+                let info = this.getPlugin(
                   "MergeCells"
                 ).mergedCellsCollection.get(sel[0], sel[1]);
                 if (
@@ -940,10 +991,51 @@ export default {
                   info.row + info.rowspan - 1 === sel[2] &&
                   info.col + info.colspan - 1 === sel[3]
                 ) {
+                  this[Symbol.for("useMerge")] = false;
                   return "取消合并单元格";
                 }
               }
+              this[Symbol.for("useMerge")] = true;
               return "合并单元格";
+            },
+            callback(key, options) {
+              let rangeArr = [
+                options[0].start.row,
+                options[0].start.col,
+                options[0].end.row,
+                options[0].end.col
+              ];
+              if (!this[Symbol.for("useMerge")]) {
+                this.getPlugin("MergeCells").unmerge(...rangeArr);
+                return;
+              }
+
+              let rangeData = this.getData(...rangeArr);
+              let midArr = [];
+              rangeData.forEach(ele => {
+                midArr = [...midArr, ...ele];
+              });
+              midArr = midArr.filter(ele => ele);
+              if (midArr.length > 1) {
+                self
+                  .$confirm(
+                    "合并后的单元格将只保留左/上单元格中的值，确定合并吗？",
+                    "合并单元格",
+                    {
+                      confirmButtonText: "确定",
+                      cancelButtonText: "取消"
+                    }
+                  )
+                  .then(() => {
+                    this[Symbol.for("mergeData")] = midArr[0];
+                    this.getPlugin("MergeCells").merge(...rangeArr);
+                  })
+                  .catch(() => {
+                    return false;
+                  });
+              } else {
+                this.getPlugin("MergeCells").merge(...rangeArr);
+              }
             }
           },
           cellsType: {
