@@ -120,6 +120,8 @@ export default {
         className: "htCenter htMiddle",
         beforeChange: function(changes, sourse) {
           const changeVal = changes[0][3];
+          const row = changes[0][0];
+          const col = changes[0][1];
           // 控制函数存储器
           const controlStore = (key, value) => {
             const STORE = self.funcStore;
@@ -162,10 +164,14 @@ export default {
           };
           // 计算
           const computeValue = value => {
-            controlStore([`${changes[0][0]}-${changes[0][1]}`], value);
+            controlStore([`${row}-${col}`], value);
             if (/^=/.test(value)) {
               let newVal = filterNameFunc(bracketsComplete(value));
               try {
+                let thisCell = `${String.fromCharCode(col+65)}${row+1}`
+                if(newVal.toUpperCase().indexOf(thisCell)>0){
+                  throw  'choose self'
+                }
                 let expression = newVal
                   .replace(/\=/, "")
                   .replace(/([a-z]+)(\d+)/gi, (match, $1, $2) => {
@@ -178,24 +184,25 @@ export default {
                   });
                 newVal = eval(expression);
               } catch (error) {
-                console.log(error);
-                if (sourse !== "funcRender") {
-                  // alert("函数异常");
-                  // self.$alert("请检查表达式是否正常", "函数表达式异常", {
-                  //   confirmButtonText: "确定",
-                  //   callback: action => {
-                  //     self.$message({
-                  //       type: "info",
-                  //       message: `action: ${action}`
-                  //     });
-                  //   }
-                  // });
-                }
                 newVal = "#VAlUE!";
+
+                if(error === 'choose self'){
+                   self.$alert("公式中的单元格引用了公式的结果，从而创建了循环引用,请重新选择。", "范围选择错误", {
+                    confirmButtonText: "确定",
+                  });
+                  
+                  controlStore([`${row}-${col}`], false);
+                  newVal = null;
+                }else if (sourse !== "funcRender") {
+                  self.$alert("请检查表达式是否正常", "函数表达式异常", {
+                    confirmButtonText: "确定",
+                  });
+                }
+     
                 // controlStore([`${changes[0][0]}-${changes[0][1]}`], false);
               }
               // 修改输入值
-              changes[0][3] = newVal;
+              changes[0][3] = newVal==='Infinity'?'#DIV/0!':newVal;
             }
           };
           computeValue(changeVal);
@@ -209,15 +216,19 @@ export default {
           if (self.funcStore[`${row}-${col}`]) {
             editArea.value = self.funcStore[`${row}-${col}`];
           }
+          let Input = self.inputNode;
+          Input.row = row;
+          Input.col = col;
           const inputHandle = () => {
             if (/^\=/.test(editArea.value)) {
-              self.drawInput(row, col, editArea, editArea.value);
+              self.drawInput(editArea, editArea.value);
             }
           };
-          // editArea.removeEventListener("input", inputHandle);
-          // editArea.addEventListener("input", inputHandle);
+          inputHandle()
+          editArea.removeEventListener("input", inputHandle);
+          editArea.addEventListener("input", inputHandle);
           // if (/^\=/.test(editArea.value)) {
-          self.drawInput(row, col, editArea, editArea.value);
+          // self.drawInput(row, col, editArea, editArea.value);
           // }
         },
         afterChange: function(changes, sourse) {
@@ -348,9 +359,9 @@ export default {
       } else {
         selectItem = this.hot1.getSelectedLast();
       }
+      Input.row= selectItem[0]
+      Input.col= selectItem[1]
       this.drawInput(
-        selectItem[0],
-        selectItem[1],
         this.hot1.getCell(selectItem[0], selectItem[1]),
         `=${v.toUpperCase()}(`,
         true
@@ -378,8 +389,9 @@ export default {
       this.createInput(node);
       return Canvas;
     },
-    quitEditor(shouldSaveData) {
+    quitEditor(shouldSaveData, shouldGetFocus) {
       const Input = this.inputNode;
+
       if (shouldSaveData) {
         this.hot1.setDataAtCell(Input.row, Input.col, Input.value);
       }
@@ -388,9 +400,11 @@ export default {
       if (Input.quitCallbacks) {
         Input.quitCallbacks.forEach(ele => ele());
       }
-      setTimeout(()=>{
+      if (shouldGetFocus) {
+        setTimeout(()=>{
         this.hot1.selectCell(Input.row, Input.col, Input.row, Input.col);
-      })
+        })
+      }
     },
     createInput(node) {
       let _this = this;
@@ -403,12 +417,12 @@ export default {
         // enter
         if (e.keyCode === 13 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
           e.preventDefault();
-          _this.quitEditor(true);
+          _this.quitEditor(true,Input.isSelecting);
         }
         // esc
         if (e.keyCode === 27) {
           e.preventDefault();
-          _this.quitEditor();
+          _this.quitEditor(false, true);
         }
       });
       Input.addEventListener("input", this.drawFromInput);
@@ -419,28 +433,38 @@ export default {
     },
 
     drawCanvas() {
-      const colorArr=['#71a1e6','#008000','#9900cc','#800000','#00cc33','#c60','#c09']
+      const colorArr = [
+        "#71a1e6",
+        "#008000",
+        "#9900cc",
+        "#800000",
+        "#00cc33",
+        "#c60",
+        "#c09"
+      ];
       let Canvas = this.canvasNode;
       Canvas.width = Canvas.clientWidth;
       Canvas.height = Canvas.clientHeight;
       let ctx = Canvas.getContext("2d");
       ctx.clearRect(0, 0, Canvas.width, Canvas.height);
       this.drawStep.forEach((ele, index) => {
-        ele.render(ctx,colorArr[index%7]);
+        ele.render(ctx, colorArr[index % 7]);
       });
     },
 
-    drawInput(row, col, targetNode, value, startEdit) {
+    drawInput(targetNode, value, startEdit) {
+
       let Input = this.inputNode;
+      const row =Input.row;
+      const col =Input.col;
       Input.style.top = 25 + row * 23 + "px";
       Input.style.left = 49 + col * 100 + "px";
       Input.style.width = targetNode.clientWidth + 2 + "px";
       Input.style.height = targetNode.clientHeight + 1 + "px";
       Input.changeVal(value);
       // this.drawFromInput();
-      Input.row = row;
-      Input.col = col;
       Input.style.display = "block";
+      this.hot1.deselectCell()
       Input.focus();
       // 存储原始值
       let cacheValue = value;
@@ -519,20 +543,24 @@ export default {
           this.hot1.removeHook("afterSelectionEnd", selectCall);
         });
       };
-      if (startEdit) {
+      // if (startEdit) {
         checkToStartSelect();
-      } else {
+      // } else {
         // this.drawFromInput();
-      }
+      // }
 
       Input.addEventListener("input", checkToStartSelect);
       // this.hot1.setDataAtCell(r,c,Input.value)
       const clickHandle = e => {
         // blur
-        if (Input.style.display !== "block") {
+        if (Input.style.display !== "block" || e.target === Input) {
           return false;
         }
-        if (!(e.target === Input) && !Input.isSelecting) {
+        if (!this.$refs.excel.contains(e.target)) {
+          this.quitEditor(true, true);
+          return
+        }
+        if (!Input.isSelecting) {
           // if (!this.$refs.excel.contains(e.target)) {
           this.quitEditor(true);
         }
@@ -548,7 +576,7 @@ export default {
 
     selectTd(r, c, r2, c2) {
       this.drawStep.push({
-        render(ctx,color) {
+        render(ctx, color) {
           ctx.strokeStyle = color;
           ctx.strokeRect(
             49 + c * 100,
@@ -564,7 +592,7 @@ export default {
       if (!/^=/.test(this.inputNode.value)) {
         return false;
       }
-      this.drawStep=[]
+      this.drawStep = [];
       try {
         this.inputNode.value
           .match(/([a-z]+\d+\:[a-z]+\d+|[a-z]+\d+)/gi)
@@ -605,7 +633,7 @@ export default {
       let Input = this.inputNode;
       ctx.clearRect(0, 0, Canvas.width, Canvas.height);
       Input.style.display = "none";
-      Input.value= '';
+      Input.value = "";
     },
     changeCellType(type) {
       let self = this;
