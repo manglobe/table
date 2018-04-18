@@ -1,14 +1,15 @@
 <template>
-    <div class="excel-wrap" ref="excelWrap" v-if="!isDelete">
+    <section class="excel-wrap" ref="excelWrap" v-if="!isDelete">
+      <div class="flex-wrap">
 
+   
         <!-- <el-input class="table-name" v-model='tableName'></el-input> -->
         <div class="btn-handle-2">
           <!-- <el-button 
             v-if="isEdit"
             type="text" 
             @click="editTable">编辑表</el-button> -->
-          <FakeSelect ref="funcSelect"  v-bind:changeHandle="funcSelect" v-bind:options="excelFunctionsOptions" name="公式"/>
-          <FakeSelect v-bind:changeHandle="funcSelect" v-bind:options="excelChartsOptions" name="插入图表"/>
+
           <el-button 
             type="text" 
             @click="saveTable"
@@ -42,9 +43,27 @@
             v-else
             type="text" 
             @click="undoTable">取消</el-button> -->
+          <div class="tools">
+            <span>fx</span>
+            <input type="text" readonly ref="funcInput">
+            <FakeSelect ref="funcSelect"  v-bind:changeHandle="funcSelect" v-bind:options="excelFunctionsOptions" name="公式"/>
+            <FakeSelect v-bind:changeHandle="chartSelect" v-bind:options="excelChartsOptions" name="插入图表"/>
+          </div>
         </div>
+
         <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
+        <div class="chart-wrap">
+
+        <IEcharts
+          style="width:400px;height:400px"
+          :option="chartOption" 
+          />
+        </div>
+        <div class="chart-wrap">
+
+        </div>
       </div>
+    </section>
 
 </template>
 
@@ -56,8 +75,11 @@ import handleObject from "@/util/handleObject";
 import "handsontable-pro/dist/handsontable.full.css";
 import FakeSelect from "./fakeSelect.vue";
 import { excelFunctions, excelCharts } from "./excelStaticData";
+import EchartsWrapper from "@/components/echartsWrapper.vue";
+import IEcharts from "vue-echarts-v3/src/lite.js";
+
 export default {
-  components: { FakeSelect },
+  components: { FakeSelect, IEcharts },
   props: {
     id: {
       type: [String, Number],
@@ -70,6 +92,7 @@ export default {
   data() {
     var self = this;
     return {
+      chartOption: {},
       excelFunctionsOptions: Object.keys(excelFunctions).map(ele => ({
         value: ele,
         label: excelFunctions[ele].name
@@ -107,7 +130,10 @@ export default {
         minCols: 1,
         minRows: 1,
         maxCols: 15,
-        colWidths: 100,
+        colWidths: 120,
+        rowHeaderWidth: 52,
+        rowHeights: 40,
+        columnHeaderHeight: 40,
         outsideClickDeselects: eventTarget => {
           if (
             self.$refs.funcSelect.$refs.mySelect.contains(eventTarget) ||
@@ -118,10 +144,14 @@ export default {
           return true;
         },
         className: "htCenter htMiddle",
+        afterSelectionEnd(r,c){
+          if(self.funcStore[`${r}-${c}`]&& /^=/.test(self.funcStore[`${r}-${c}`])){
+            self.$refs.funcInput.value = self.funcStore[`${r}-${c}`]
+          }else{
+            self.$refs.funcInput.value = '';
+          }
+        },
         beforeChange: function(changes, sourse) {
-          const changeVal = changes[0][3];
-          const row = changes[0][0];
-          const col = changes[0][1];
           // 控制函数存储器
           const controlStore = (key, value) => {
             const STORE = self.funcStore;
@@ -132,7 +162,11 @@ export default {
               STORE[key] = null;
               return;
             }
-            STORE[key] = changeVal;
+            if (STORE[key] && STORE[key].autoFill) {
+              STORE[key] = STORE[key].autoFill;
+              return;
+            }
+            STORE[key] = value;
           };
           // 补全括号
           const bracketsComplete = str => {
@@ -163,14 +197,14 @@ export default {
             return midVal;
           };
           // 计算
-          const computeValue = value => {
+          const computeValue = (row, col, value) => {
             controlStore([`${row}-${col}`], value);
             if (/^=/.test(value)) {
               let newVal = filterNameFunc(bracketsComplete(value));
               try {
-                let thisCell = `${String.fromCharCode(col+65)}${row+1}`
-                if(newVal.toUpperCase().indexOf(thisCell)>0){
-                  throw  'choose self'
+                let thisCell = `${String.fromCharCode(col + 65)}${row + 1}`;
+                if (newVal.toUpperCase().indexOf(thisCell) > 0) {
+                  throw "choose self";
                 }
                 let expression = newVal
                   .replace(/\=/, "")
@@ -185,27 +219,38 @@ export default {
                 newVal = eval(expression);
               } catch (error) {
                 newVal = "#VAlUE!";
+                if (error === "choose self") {
+                  self.$alert(
+                    "公式中的单元格引用了公式的结果，从而创建了循环引用,请重新选择。",
+                    "范围选择错误",
+                    {
+                      confirmButtonText: "确定"
+                    }
+                  );
 
-                if(error === 'choose self'){
-                   self.$alert("公式中的单元格引用了公式的结果，从而创建了循环引用,请重新选择。", "范围选择错误", {
-                    confirmButtonText: "确定",
-                  });
-                  
                   controlStore([`${row}-${col}`], false);
                   newVal = null;
-                }else if (sourse !== "funcRender") {
+                } else if (sourse !== "funcRender") {
                   self.$alert("请检查表达式是否正常", "函数表达式异常", {
-                    confirmButtonText: "确定",
+                    confirmButtonText: "确定"
                   });
                 }
-     
+
                 // controlStore([`${changes[0][0]}-${changes[0][1]}`], false);
               }
               // 修改输入值
-              changes[0][3] = newVal==='Infinity'?'#DIV/0!':newVal;
+              return newVal === "Infinity" ? "#DIV/0!" : newVal;
             }
+            return value;
           };
-          computeValue(changeVal);
+
+          changes.forEach((columDataArr, rowIndex) => {
+            let changeVal = changes[rowIndex][3];
+            const row = changes[rowIndex][0];
+            const col = changes[rowIndex][1];
+            let val = computeValue(row, col, changeVal);
+            changes[rowIndex][3] = val;
+          });
         },
 
         afterBeginEditing: function(row, col) {
@@ -224,12 +269,9 @@ export default {
               self.drawInput(editArea, editArea.value);
             }
           };
-          inputHandle()
+          inputHandle();
           editArea.removeEventListener("input", inputHandle);
           editArea.addEventListener("input", inputHandle);
-          // if (/^\=/.test(editArea.value)) {
-          // self.drawInput(row, col, editArea, editArea.value);
-          // }
         },
         afterChange: function(changes, sourse) {
           if (sourse !== "funcRender") {
@@ -298,24 +340,72 @@ export default {
           }
         },
         // 2018.4.2 new setting add
-        beforeMergeCells(cellRange) {
-          // let rangeDataArr = self.hot1.getData(
-          //   cellRange.from.row,
-          //   cellRange.from.col,
-          //   cellRange.to.row,
-          //   cellRange.to.col
-          // );
-          // let data;
-          // rangeDataArr.some(ele =>
-          //   ele.some(ele => {
-          //     if (ele !== "") {
-          //       data = ele;
-          //       return true;
-          //     }
-          //     return false;
-          //   })
-          // );
-          // this[Symbol.for("mergeData")] = data;
+        afterSelection(r, c, r2, c2) {
+          self.selectedRange = [r, c, r2, c2];
+        },
+        beforeAutofillInsidePopulate(
+          index,
+          direction,
+          dataSourse,
+          deltas,
+          empty,
+          fillSize
+        ) {
+          let thisCellData =
+            dataSourse[index.row % dataSourse.length][
+              index.col % dataSourse[0].length
+            ];
+          let originRange = self.selectedRange;
+          let targetStartCell = [];
+
+          switch (direction) {
+            case "left":
+              targetStartCell = [originRange[0], originRange[1] - fillSize.col];
+              break;
+            case "right":
+              targetStartCell = [originRange[0], originRange[1] + 1];
+              break;
+            case "up":
+              targetStartCell = [originRange[0] - fillSize.row, originRange[1]];
+              break;
+            case "down":
+              targetStartCell = [originRange[0] + 1, originRange[1]];
+              break;
+            default:
+              throw error("direction is undefined");
+              break;
+          }
+          const autoFillFunction = data => {
+            if (data) {
+              let md = data.replace(/([A-Z]+)([0-9]+)/gi, (match, $1, $2) => {
+                return (
+                  String.fromCharCode(
+                    $1.charCodeAt(0) +
+                      index.col +
+                      targetStartCell[1] -
+                      originRange[1]
+                  ) +
+                  (+$2 + index.row + targetStartCell[0] - originRange[0])
+                );
+              });
+              self.funcStore[
+                `${targetStartCell[0] + index.row}-${targetStartCell[1] +
+                  index.col}`
+              ] = { autoFill: md };
+            }
+          };
+          const checkData = (r, c) => {
+            if (/^\=/.test(self.funcStore[`${r}-${c}`])) {
+              return self.funcStore[`${r}-${c}`];
+            }
+            return false;
+          };
+          autoFillFunction(
+            checkData(
+              originRange[0] + index.row % dataSourse.length,
+              originRange[1] + index.col % dataSourse[0].length
+            )
+          );
         },
         afterMergeCells(cellRange) {
           self.hot1.setDataAtCell(
@@ -350,6 +440,11 @@ export default {
     }
   },
   methods: {
+    chartSelect(v) {
+      this.chartOption = excelCharts[v].func(
+        JSON.parse(this.getExcelData().tableData)
+      );
+    },
     // function
     funcSelect(v) {
       let selectItem;
@@ -359,8 +454,8 @@ export default {
       } else {
         selectItem = this.hot1.getSelectedLast();
       }
-      Input.row= selectItem[0]
-      Input.col= selectItem[1]
+      Input.row = selectItem[0];
+      Input.col = selectItem[1];
       this.drawInput(
         this.hot1.getCell(selectItem[0], selectItem[1]),
         `=${v.toUpperCase()}(`,
@@ -401,9 +496,9 @@ export default {
         Input.quitCallbacks.forEach(ele => ele());
       }
       if (shouldGetFocus) {
-        setTimeout(()=>{
-        this.hot1.selectCell(Input.row, Input.col, Input.row, Input.col);
-        })
+        setTimeout(() => {
+          this.hot1.selectCell(Input.row, Input.col, Input.row, Input.col);
+        });
       }
     },
     createInput(node) {
@@ -417,7 +512,7 @@ export default {
         // enter
         if (e.keyCode === 13 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
           e.preventDefault();
-          _this.quitEditor(true,Input.isSelecting);
+          _this.quitEditor(true, Input.isSelecting);
         }
         // esc
         if (e.keyCode === 27) {
@@ -453,18 +548,17 @@ export default {
     },
 
     drawInput(targetNode, value, startEdit) {
-
       let Input = this.inputNode;
-      const row =Input.row;
-      const col =Input.col;
-      Input.style.top = 25 + row * 23 + "px";
-      Input.style.left = 49 + col * 100 + "px";
+      const row = Input.row;
+      const col = Input.col;
+      Input.style.top = this.hotSettings.columnHeaderHeight +  row* this.hotSettings.rowHeights + "px";
+      Input.style.left = this.hotSettings.rowHeaderWidth + col * this.hotSettings.colWidths + "px";
       Input.style.width = targetNode.clientWidth + 2 + "px";
       Input.style.height = targetNode.clientHeight + 1 + "px";
       Input.changeVal(value);
       // this.drawFromInput();
       Input.style.display = "block";
-      this.hot1.deselectCell()
+      this.hot1.deselectCell();
       Input.focus();
       // 存储原始值
       let cacheValue = value;
@@ -543,14 +637,8 @@ export default {
           this.hot1.removeHook("afterSelectionEnd", selectCall);
         });
       };
-      // if (startEdit) {
-        checkToStartSelect();
-      // } else {
-        // this.drawFromInput();
-      // }
-
+      checkToStartSelect();
       Input.addEventListener("input", checkToStartSelect);
-      // this.hot1.setDataAtCell(r,c,Input.value)
       const clickHandle = e => {
         // blur
         if (Input.style.display !== "block" || e.target === Input) {
@@ -558,10 +646,9 @@ export default {
         }
         if (!this.$refs.excel.contains(e.target)) {
           this.quitEditor(true, true);
-          return
+          return;
         }
         if (!Input.isSelecting) {
-          // if (!this.$refs.excel.contains(e.target)) {
           this.quitEditor(true);
         }
       };
@@ -575,20 +662,20 @@ export default {
     },
 
     selectTd(r, c, r2, c2) {
+      const _this =this 
       this.drawStep.push({
         render(ctx, color) {
           ctx.strokeStyle = color;
           ctx.strokeRect(
-            49 + c * 100,
-            25 + r * 23,
-            (c2 - c + 1) * 100 + 1,
-            (r2 - r + 1) * 23 + 2
+            _this.hotSettings.rowHeaderWidth + c *  _this.hotSettings.colWidths,
+            _this.hotSettings.columnHeaderHeight + r * _this.hotSettings.rowHeights,
+            (c2 - c + 1) * _this.hotSettings.colWidths ,
+            (r2 - r + 1) * _this.hotSettings.rowHeights
           );
         }
       });
     },
     drawFromInput() {
-      // const targetNode = node || this.inputNode;
       if (!/^=/.test(this.inputNode.value)) {
         return false;
       }
@@ -927,17 +1014,20 @@ export default {
           break;
       }
     },
-    saveTable() {
+    getExcelData() {
       let dataStr = JSON.stringify(this.hotSettings.data);
-      let params = {
+      return {
         tableData: JSON.stringify(this.hotSettings.data),
         cellInfo: JSON.stringify(
-          this.hot1.getInstance().mergeCells.mergedCellInfoCollection
+          this.hot1.getPlugin("MergeCells").mergedCellsCollection.mergedCells
         ),
         quotaId: this.$route.query.quotaId,
         tableId: this.tableId,
         tableName: this.tableName
       };
+    },
+    saveTable() {
+      let params = this.getExcelData();
       this.saving = true;
       this.isEdit = false;
       if (!this.new) {
@@ -1062,6 +1152,7 @@ export default {
                     return false;
                   });
               } else {
+                this[Symbol.for("mergeData")] = midArr[0];
                 this.getPlugin("MergeCells").merge(...rangeArr);
               }
             }
@@ -1143,21 +1234,43 @@ export default {
   width: 95%;
   margin: 0 auto;
   margin-top: 30px;
-  padding: 60px 30px 30px;
+  padding: 60px 40px 40px;
   background: #ffffff;
   box-sizing: border-box;
+  border: 1px solid #e5e9f1;
+  box-shadow: 0 0 3px 0 #ced7e8;
   position: relative;
-  & > div {
-    width: 1050px;
+  text-align: center;
+
+  & .hot {
+    display: inline-block;
+    max-width: 100%;
     margin: 0 auto;
+    // overflow: scroll;
+  }
+  table * {
+    border-color: #e8e8e8 !important;
+  }
+  th,
+  td {
+    vertical-align: middle;
   }
 }
-
+.flex-wrap {
+  display: flex;
+  max-width: 100%;
+  overflow: hidden;
+  flex-wrap: wrap;
+  width: min-content;
+  margin: 0 auto;
+}
 #hot-display-license-info {
   display: none;
 }
 .btn-handle-2 {
   text-align: right;
+  margin: 0 auto;
+  width: 100%;
   .line {
     display: inline-block;
     height: 16px;
@@ -1167,9 +1280,33 @@ export default {
     margin: 0 6px;
     vertical-align: sub;
   }
+  .tools {
+    display: flex;
+    background: #ffffff;
+    border: 1px solid #e8e8e8;
+    width: 100%;
+    height: 40px;
+    margin-top: 10px;
+    align-items: center;
+    border-bottom: none;
+    box-sizing: border-box;
+    text-align: center;
+    span {
+      width: 52px;
+      font-size: 14px;
+      color: #666666;
+    }
+    input {
+      flex: 1;
+      border:none;
+      outline:none;
+      cursor:auto;
+    }
+  }
 }
 td {
   position: relative;
+
   i {
     position: absolute;
     z-index: 2;
@@ -1237,5 +1374,17 @@ td {
   font-size: 14px;
   box-sizing: border-box !important;
   overflow: hidden;
+}
+.chart-wrap{
+  height: 275px;
+  background: #FFFFFF;
+  border: 1px solid #E5E9F1;
+  box-shadow: 0 0 3px 0 #CED7E8;
+  width: calc(50% - 10px);
+  margin-right: 20px;
+  box-sizing: border-box;
+  &:last-child{
+    margin-right: 0;
+  }
 }
 </style>

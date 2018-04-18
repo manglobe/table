@@ -208,7 +208,9 @@ export default {
 .hot .ht_master>.wtHolder {
   overflow-y: hidden;
   height: auto !important;
-  width: 1050px !important;
+  display: inline-block;
+  max-width: 100% !important;
+  width: auto !important;
 }
 // .ht_clone_top .wtHolder,
 // .ht_clone_bottom .wtHolder {
@@ -220,7 +222,7 @@ export default {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 168px;
+    width: 125px;
     left: 0;
     border: none;
 

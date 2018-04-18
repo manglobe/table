@@ -28,30 +28,6 @@ export const excelFunctions = {
     SUM: {
         name: '求和',
         func(valueStr) {
-            // let valueArr = valueStr.split(',')
-            // valueStr = valueStr.replace(/([a-z]+\d+):([a-z]+\d+)/g, (match, $1, $2) => {
-            //     let rowStart = $1.match(/[a-z]/g)[0].charCodeAt(0);
-            //     let colStart = $1.match(/\d+/g)[0];
-            //     let rowReduce = $2.match(/\d+/g)[0] - $1.match(/\d+/g)[0] + 1
-            //     let colReduce = $2.match(/[a-z]/g)[0].charCodeAt(0) - $1.match(/[a-z]/g)[0].charCodeAt(0) + 1
-            //     let rowArr = Array.from({
-            //         length: rowReduce
-            //     }, (val, index) => +colStart + index);
-            //     let colArr = Array.from({
-            //         length: colReduce
-            //     }, (val, index) => String.fromCharCode(+rowStart + index));
-            //     console.log(`rowArr`)
-            //     console.log(rowArr)
-            //     console.log(colArr)
-            //     console.log(`colArr`)
-            //     let newStr = '';
-            //     rowArr.forEach(rowEle => {
-            //         colArr.forEach(colEle => {
-            //             newStr += colEle + rowEle + '+'
-            //         })
-            //     })
-            //     return newStr.slice(0, -1)
-            // })
             console.log('求和')
             let newStr = valueStr.replace(/sum/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
                 return `(${disposeRange(match).join('+')})`
@@ -82,9 +58,23 @@ export const excelFunctions = {
 export const excelCharts = {
     sum: {
         name: '折线图',
-        func() {
+        func(dataSourse) {
             console.log('折线图')
             console.log(arguments)
+            return {
+                xAxis: {
+                    type: 'category',
+                    data: dataSourse[0].map((ele,index)=>String.fromCharCode(index+97))
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: dataSourse.map((ele, index)=>({
+                    data:ele,
+                    type:'line',
+                    name:index+1
+                }))
+            }
         }
     },
     reduce: {
