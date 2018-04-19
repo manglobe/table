@@ -1,8 +1,11 @@
 <template>
-  <div class="fake-select" v-bind:class="{active:showOptions}" @click="toggleOptions()" ref="mySelect">
+  <div class="fake-select"  ref="mySelect">
+    <svg v-if="svg" class="svg" aria-hidden="true">
+      <use :xlink:href="svg"></use>
+    </svg>
     <span>{{name}}</span>
     <i class="el-icon-arrow-down" ></i>
-    <ul v-if="showOptions">
+    <ul>
       <li v-for="item in options" :key="item.index" @click="changeHandle(item.value)">
         {{item.label}}
       </li>
@@ -11,69 +14,42 @@
 </template>
 
 <script>
+
+
 export default {
-  props: ["changeHandle", "options", "name"],
+  props: ["changeHandle", "options", "name", "svg"],
   data() {
     return {
-      showOptions: false
     };
   },
   methods: {
-    toggleOptions(bool) {
-      if (bool !== undefined) {
-        this.showOptions = bool;
-        return;
-      }
-      this.showOptions = !this.showOptions;
-    }
   },
-  mounted() {
-    const _this = this;
-    const thisNode = _this.$refs.mySelect;
-    window.addEventListener("click", function(e) {
-      if (!thisNode.contains(e.target)) {
-        _this.toggleOptions(false);
-      }
-    });
-  }
 };
 </script>
 <style rel="stylesheet/scss" lang="scss">
 .fake-select {
   display: inline-block;
   position: relative;
-  padding-right: 20px;
-  padding-left: 22px;
-  height: 20px;
+  padding: 10px 20px;
+  height: 40px;
+  box-sizing: border-box;
   line-height: 20px;
   font-family: PingFangSC-Regular;
   font-size: 14px;
   color: #333333;
   margin: 0 15px; 
   cursor: pointer;
-  &::before {
-    content: "";
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1px solid #e8e8e8;
+  svg{
+    width: 16px;
+    height: 16px;
     display: inline-block;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    margin: auto;
-    left: 0;
-    box-sizing: border-box;
-  }
-  &.active {
-    &::before {
-      border: 4px solid #06aea6;
-    }
+    vertical-align: middle;
   }
   .el-icon-arrow-down {
     position: absolute;
     font-size: 10px;
     color: #999999;
+    height: 20px;
     top: 0;
     bottom: 0;
     margin: auto;
@@ -82,16 +58,21 @@ export default {
     line-height: 20px;
     font-weight: bold;
   }
+  &:hover{
+    ul{
+      display: inline-block;
+    }
+  }
   ul {
+    display: none;
     position: absolute;
-    top: 28px;
-    background: #ffffff;
+    top: 38px;
+    background: #fff;
     border: 1px solid #e8e8e8;
-    box-shadow: 0 0 3px 0 #cccccc;
+    box-shadow: 0 0 3px 0 #ccc;
     border-radius: 2px;
     margin: 0;
     min-width: 100%;
-    display: inline-block;
     box-sizing: border-box;
     z-index: 1000;
     padding: 0;

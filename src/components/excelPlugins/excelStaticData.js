@@ -62,17 +62,34 @@ export const excelCharts = {
             console.log('折线图')
             console.log(arguments)
             return {
+                legend:{
+                    data: dataSourse[0].map((ele,index)=> String.fromCharCode(index+97))
+                },
+                tooltip : {
+                    trigger: 'axis'
+                },
+                // toolbox: {
+                //     show : true,
+                //     feature : {
+                //         mark : {show: true},
+                //         dataView : {show: true, readOnly: false},
+                //         magicType : {show: true, type: ['line', 'bar', 'stack', 'tiled']},
+                //         restore : {show: true},
+                //         saveAsImage : {show: true}
+                //     }
+                // },
                 xAxis: {
                     type: 'category',
-                    data: dataSourse[0].map((ele,index)=>String.fromCharCode(index+97))
+                    boundaryGap : false,
+                    data: dataSourse.map((ele,index)=>index+1)
                 },
                 yAxis: {
                     type: 'value'
                 },
-                series: dataSourse.map((ele, index)=>({
-                    data:ele,
+                series: dataSourse[0].map((ele, index)=>({
+                    data: dataSourse.map(ele=>ele[index]),
                     type:'line',
-                    name:index+1
+                    name:  String.fromCharCode(index+97)
                 }))
             }
         }

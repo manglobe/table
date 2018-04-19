@@ -46,21 +46,24 @@
           <div class="tools">
             <span>fx</span>
             <input type="text" readonly ref="funcInput">
-            <FakeSelect ref="funcSelect"  v-bind:changeHandle="funcSelect" v-bind:options="excelFunctionsOptions" name="公式"/>
-            <FakeSelect v-bind:changeHandle="chartSelect" v-bind:options="excelChartsOptions" name="插入图表"/>
+            <FakeSelect svg='#icon-gongshi' ref="funcSelect"  v-bind:changeHandle="funcSelect" v-bind:options="excelFunctionsOptions" name="公式"/>
+            <FakeSelect svg='#icon-charutubiao' v-bind:changeHandle="chartSelect" v-bind:options="excelChartsOptions" name="插入图表"/>
+            <FakeSelect svg='#icon-shengchengtubiao' v-bind:changeHandle="chartSelectFull" v-bind:options="excelChartsOptions" name="自动生成图表"/>
           </div>
         </div>
 
         <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
         <div class="chart-wrap">
-
-        <IEcharts
-          style="width:400px;height:400px"
-          :option="chartOption" 
-          />
+          <IEcharts
+            style="width:100%;height:100%;text-align:left"
+            :option="chartOption" 
+            />
         </div>
         <div class="chart-wrap">
-
+          <IEcharts
+            style="width:100%;height:100%;text-align:left"
+            :option="chartOptionFull" 
+            />
         </div>
       </div>
     </section>
@@ -74,7 +77,7 @@ import Calculation from "@/util/Calculation.js";
 import handleObject from "@/util/handleObject";
 import "handsontable-pro/dist/handsontable.full.css";
 import FakeSelect from "./fakeSelect.vue";
-import { excelFunctions, excelCharts } from "./excelStaticData";
+import { excelFunctions, excelCharts } from "./excelPlugins/excelStaticData";
 import EchartsWrapper from "@/components/echartsWrapper.vue";
 import IEcharts from "vue-echarts-v3/src/lite.js";
 
@@ -93,6 +96,7 @@ export default {
     var self = this;
     return {
       chartOption: {},
+      chartOptionFull: {},
       excelFunctionsOptions: Object.keys(excelFunctions).map(ele => ({
         value: ele,
         label: excelFunctions[ele].name
@@ -144,7 +148,8 @@ export default {
           return true;
         },
         className: "htCenter htMiddle",
-        afterSelectionEnd(r,c){
+        afterSelectionEnd(r,c,r2,c2){
+          self.hot1[Symbol.for('lastSelected')] = [r,c,r2,c2]
           if(self.funcStore[`${r}-${c}`]&& /^=/.test(self.funcStore[`${r}-${c}`])){
             self.$refs.funcInput.value = self.funcStore[`${r}-${c}`]
           }else{
@@ -417,12 +422,14 @@ export default {
       }
     };
   },
+
   watch: {
     "hotSettings.data": function(newVal, oldVal) {
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
     }
   },
+
   computed: {
     selectedData() {
       const result = [];
@@ -439,9 +446,17 @@ export default {
       return `excel${this.id}`;
     }
   },
+
   methods: {
     chartSelect(v) {
+      const selectRange = this.hot1[Symbol.for('lastSelected')]
+      let data = this.hot1.getData(...selectRange)
       this.chartOption = excelCharts[v].func(
+        data
+      );
+    },
+    chartSelectFull(v) {
+      this.chartOptionFull = excelCharts[v].func(
         JSON.parse(this.getExcelData().tableData)
       );
     },
@@ -1376,6 +1391,7 @@ td {
   overflow: hidden;
 }
 .chart-wrap{
+  margin-top: 18px;
   height: 275px;
   background: #FFFFFF;
   border: 1px solid #E5E9F1;
