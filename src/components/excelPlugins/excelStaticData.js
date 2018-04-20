@@ -28,29 +28,37 @@ export const excelFunctions = {
     SUM: {
         name: '求和',
         func(valueStr) {
-            console.log('求和')
             let newStr = valueStr.replace(/sum/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
                 return `(${disposeRange(match).join('+')})`
             }).replace(/,/g, '+');
             return newStr
         }
     },
-    REDUCE: {
+    SUBTRACTION: {
         name: '求差',
-        func() {
-            console.log(arguments)
+        func(valueStr ) {
+            let newStr = valueStr.replace(/subtraction/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
+                return `(${disposeRange(match).join('+')})`
+            }).replace(/,/g, '-');
+             return newStr
         }
     },
     QUOTIENT: {
         name: '求商',
-        func() {
-            console.log(arguments)
+        func(valueStr ) {
+            let newStr = valueStr.replace(/quotient/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
+                return `(${disposeRange(match).join('+')})`
+            }).replace(/,/g, '/');
+            return newStr
         }
     },
     AVERAGE: {
         name: '求平均数',
-        func() {
-            console.log(arguments)
+        func(valueStr ) {
+            let newStr = valueStr.replace(/AVERAGE/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
+                return `(${disposeRange(match).join('+')})`
+            }).replace(/,/g, '+');
+            return `(${newStr}/${newStr.match(/[a-z]+\d+/gi).length})`
         }
     },
 }
