@@ -157,6 +157,7 @@ export default {
           }
         },
         beforeChange: function(changes, sourse) {
+          // console.log(sourse)
           // 控制函数存储器
           const controlStore = (key, value) => {
             const STORE = self.funcStore;
@@ -223,7 +224,7 @@ export default {
                   });
                 newVal = eval(expression);
               } catch (error) {
-                newVal = "#VAlUE!";
+                newVal = "#VALUE!";
                 if (error === "choose self") {
                   self.$alert(
                     "公式中的单元格引用了公式的结果，从而创建了循环引用,请重新选择。",
@@ -271,7 +272,8 @@ export default {
           Input.col = col;
           const inputHandle = () => {
             if (/^\=/.test(editArea.value)) {
-              self.drawInput(editArea, editArea.value);
+              self.hot1.destroyEditor(true)
+              self.drawInput(editArea.value);
             }
           };
           inputHandle();
@@ -472,7 +474,6 @@ export default {
       Input.row = selectItem[0];
       Input.col = selectItem[1];
       this.drawInput(
-        this.hot1.getCell(selectItem[0], selectItem[1]),
         `=${v.toUpperCase()}(`,
         true
       );
@@ -517,22 +518,25 @@ export default {
       }
     },
     createInput(node) {
-      let _this = this;
       let Input = document.createElement("textarea");
+      let InputDisplay = document.createElement("div");
       Input.classList.add("layer-input");
-      this.inputNode = Input;
+      InputDisplay.classList.add("layer-input-display");
+      this.inputNode = Input; 
+      this.inputDisplay = InputDisplay;
       node.insertBefore(Input, this.canvasNode);
+      node.insertBefore(InputDisplay, this.canvasNode);
       Input.quitCallbacks = [];
-      Input.addEventListener("keydown", function(e) {
+      Input.addEventListener("keydown",(e)=> {
         // enter
         if (e.keyCode === 13 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
           e.preventDefault();
-          _this.quitEditor(true, Input.isSelecting);
+          this.quitEditor(true, Input.isSelecting);
         }
         // esc
         if (e.keyCode === 27) {
           e.preventDefault();
-          _this.quitEditor(false, true);
+          this.quitEditor(false, true);
         }
       });
       Input.addEventListener("input", this.drawFromInput);
@@ -562,17 +566,23 @@ export default {
       });
     },
 
-    drawInput(targetNode, value, startEdit) {
+    drawInput( value, startEdit) {
       let Input = this.inputNode;
+      let InputDisplay = this.inputDisplay;
       const row = Input.row;
       const col = Input.col;
       Input.style.top = this.hotSettings.columnHeaderHeight +  row* this.hotSettings.rowHeights + "px";
       Input.style.left = this.hotSettings.rowHeaderWidth + col * this.hotSettings.colWidths + "px";
-      Input.style.width = targetNode.clientWidth + 2 + "px";
-      Input.style.height = targetNode.clientHeight + 1 + "px";
-      Input.changeVal(value);
+      Input.style.width = this.hotSettings.colWidths + 2 + "px";
+      Input.style.height = this.hotSettings.rowHeights + 1 + "px";
+      InputDisplay.style.top = Input.style.top
+      InputDisplay.style.left = Input.style.left
+      InputDisplay.style.width = Input.style.width
+      InputDisplay.style.height = Input.style.height
+      Input.changeVal(value);      
       // this.drawFromInput();
       Input.style.display = "block";
+      InputDisplay.style.display = "block";
       this.hot1.deselectCell();
       Input.focus();
       // 存储原始值
@@ -598,20 +608,23 @@ export default {
         let selectStr, selectBeforeStr, selectEndStr;
         selectBeforeStr = Input.value.slice(0, Input.selectionStart);
         selectEndStr = Input.value.slice(Input.selectionEnd);
-
         //  光标位置检测
         if (!Input.selectionStart === Input.selectionEnd) {
+
           selectStr = Input.value.slice(
             Input.selectionStart,
             Input.selectionEnd
           );
+         
           if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)/.test(selectStr)) {
+
             selectCall.callback = str => {
               Input.changeVal(selectBeforeStr + str + selectEndStr);
             };
           }
         } else {
           if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/.test(selectBeforeStr)) {
+            
             let localSelectedRange = selectBeforeStr.match(
               /([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/
             )[0];
@@ -641,6 +654,7 @@ export default {
         Input.isSelecting = false;
         this.hot1.removeHook("afterSelectionEnd", selectCall);
         Input.style.height = Input.scrollHeight + 4 + "px";
+        this.inputDisplay.style.height = Input.style.height;
         if (!/^=/.test(Input.value)) {
           return false;
         }
@@ -695,6 +709,8 @@ export default {
         return false;
       }
       this.drawStep = [];
+      let displayValue = this.inputNode.value.replace(/([a-z]+\d+\:[a-z]+\d+|[a-z]+\d+)/gi,'<span>$1</span>')
+      this.inputDisplay.innerHTML=displayValue
       try {
         this.inputNode.value
           .match(/([a-z]+\d+\:[a-z]+\d+|[a-z]+\d+)/gi)
@@ -735,6 +751,7 @@ export default {
       let Input = this.inputNode;
       ctx.clearRect(0, 0, Canvas.width, Canvas.height);
       Input.style.display = "none";
+      this.inputDisplay.style.display = "none";
       Input.value = "";
     },
     changeCellType(type) {
@@ -1383,12 +1400,63 @@ td {
   box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.6);
   border: 2px solid rgb(82, 146, 247);
   resize: none;
-  color: #000;
+  -webkit-text-fill-color: transparent; 
   border-radius: 0;
   background-color: #fff;
   font-size: 14px;
   box-sizing: border-box !important;
   overflow: hidden;
+  &::selection {
+    color: #3390ff; /* WebKit/Blink Browsers */
+    background: #3390ff;
+  }
+}
+.layer-input-display {
+  display: none;
+  word-break: break-all;
+  position: absolute;
+  z-index: 105;
+  border: none;
+  outline-width: 0;
+  margin: 0;
+  padding: 1px 5px 0 5px;
+  font-family: inherit;
+  line-height: 21px;
+  font-size: inherit;
+  resize: none;
+  color: #000;
+  border-radius: 0;
+  background-color: transparent;
+  font-size: 14px;
+  box-sizing: border-box !important;
+  overflow: hidden;
+  pointer-events: none;
+  text-align-last: left;
+  border: 2px solid rgb(82, 146, 247);
+  span{
+    border-radius: 6px;
+    &:nth-child(7n+1){
+      background: rgba(113,161,230,0.2);
+    }
+    &:nth-child(7n+2){
+      background: rgba(0,128,0,0.2);
+    }
+    &:nth-child(7n+3){
+      background: rgba(153,0,204,0.2);
+    }
+    &:nth-child(7n+4){
+      background: rgba(128,0,0,0.2);
+    }
+    &:nth-child(7n+5){
+      background: rgba(0,204,51,0.2);
+    }
+    &:nth-child(7n+6){
+      background: rgba(204,102,0,0.2);
+    }
+    &:nth-child(7n){
+      background: rgba(204,0,153,0.2);
+    }
+  }
 }
 .chart-wrap{
   margin-top: 18px;
