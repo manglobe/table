@@ -65,6 +65,8 @@
             :option="chartOptionFull" 
             />
         </div>
+        <Charts :options="chartOption" >
+        </Charts>
       </div>
     </section>
 
@@ -79,10 +81,10 @@ import "handsontable-pro/dist/handsontable.full.css";
 import FakeSelect from "./fakeSelect.vue";
 import { excelFunctions, excelCharts } from "./excelPlugins/excelStaticData";
 import EchartsWrapper from "@/components/echartsWrapper.vue";
-import IEcharts from "vue-echarts-v3/src/lite.js";
-
+import IEcharts from 'vue-echarts-v3/src/full.js';
+import Charts from '@/components/echartsBox.vue';
 export default {
-  components: { FakeSelect, IEcharts },
+  components: { FakeSelect, IEcharts, Charts },
   props: {
     id: {
       type: [String, Number],
@@ -157,19 +159,23 @@ export default {
           }
         },
         beforeChange: function(changes, sourse) {
-          // console.log(sourse)
+
           // 控制函数存储器
           const controlStore = (key, value) => {
             const STORE = self.funcStore;
-            if (value === undefined && !STORE[key]) {
-              return;
-            }
+            // if (value === undefined && !STORE[key]) {
+            //   return;
+            // }
             if (value === false) {
-              STORE[key] = null;
+              delete STORE[key];
               return;
             }
             if (STORE[key] && STORE[key].autoFill) {
               STORE[key] = STORE[key].autoFill;
+              return;
+            }
+            if (!/^=/.test(value)) {
+              delete STORE[key];
               return;
             }
             STORE[key] = value;
@@ -237,33 +243,39 @@ export default {
                   controlStore([`${row}-${col}`], false);
                   newVal = null;
                 } else if (sourse !== "funcRender") {
-                  self.$alert("请检查表达式是否正常", "函数表达式异常", {
+                  self.$alert(`你是否要输入公式文本? 
+当第一个字符是 = 时，表格会认为它是公式，为避免这个问题，请在 = 号前输入'，例如：'=1+1，则此时单元格会显示：=1+1`, "公式输入异常", {
                     confirmButtonText: "确定"
                   });
                 }
-
                 // controlStore([`${changes[0][0]}-${changes[0][1]}`], false);
               }
               // 修改输入值
               return newVal === "Infinity" ? "#DIV/0!" : newVal;
             }
+            if(/^'=/.test(value)){
+              return value.replace(/^'/,'');
+            }
             return value;
           };
 
           changes.forEach((columDataArr, rowIndex) => {
-            let changeVal = changes[rowIndex][3];
+            let changedVal = changes[rowIndex][3];
             const row = changes[rowIndex][0];
             const col = changes[rowIndex][1];
-            let val = computeValue(row, col, changeVal);
+            let val = computeValue(row, col, changedVal);
             changes[rowIndex][3] = val;
           });
         },
 
         afterBeginEditing: function(row, col) {
-          let data = self.hot1.getDataAtCell(row, col);
+          self.quitEditor()
           let edit = self.hot1.getActiveEditor();
           let editArea = edit.TEXTAREA;
           self.editArea = editArea;
+          if(/^=/.test(editArea.value)){
+            editArea.value = `'`+editArea.value;
+          }
           if (self.funcStore[`${row}-${col}`]) {
             editArea.value = self.funcStore[`${row}-${col}`];
           }
@@ -277,9 +289,9 @@ export default {
             }
           };
           inputHandle();
-          editArea.removeEventListener("input", inputHandle);
           editArea.addEventListener("input", inputHandle);
         },
+
         afterChange: function(changes, sourse) {
           if (sourse !== "funcRender") {
             self.funcRender();
@@ -289,6 +301,7 @@ export default {
             self.$emit("whetherSave", self.isEdit, self.id);
           }
         },
+
         afterCopy: function(changes, coords) {
           // 缓存已合并的单元格
           const mergedArr = self.hot1.getPlugin("MergeCells")
@@ -313,9 +326,11 @@ export default {
 
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
+
         afterCut: function(changes) {
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
+
         afterPaste: function(changes, coords) {
           if (self.pasteMergeCache.length) {
             self.pasteMergeCache.forEach(ele => {
@@ -331,6 +346,7 @@ export default {
           }
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
+
         afterContextMenuShow(context) {
           self.firstSelectedRow = this.getSelectedRange()[0].from.row;
           self.firstSelectedCol = this.getSelectedRange()[0].from.col;
@@ -350,6 +366,7 @@ export default {
         afterSelection(r, c, r2, c2) {
           self.selectedRange = [r, c, r2, c2];
         },
+
         beforeAutofillInsidePopulate(
           index,
           direction,
@@ -414,13 +431,19 @@ export default {
             )
           );
         },
+
         afterMergeCells(cellRange) {
           self.hot1.setDataAtCell(
             cellRange.from.row,
             cellRange.from.col,
             this[Symbol.for("mergeData")]
           );
+        },
+
+        beforeUndo(action){
+          console.log(action)
         }
+
       }
     };
   },
@@ -479,19 +502,17 @@ export default {
       );
     },
     funcRender() {
-      // const _this = this
-      for (const key in this.funcStore) {
-        if (this.funcStore.hasOwnProperty(key)) {
-          const element = this.funcStore[key];
-          const coordsArr = key.match(/\d+/g);
-          this.hot1.setDataAtCell(
-            +coordsArr[0],
-            +coordsArr[1],
-            element,
-            "funcRender"
-          );
-        }
-      }
+      let renderArr =  Object.keys(this.funcStore).map(ele=>{
+        const element = this.funcStore[ele];
+        const coordsArr = ele.match(/\d+/g);
+        return [
+          +coordsArr[0],
+          +coordsArr[1],
+          element,
+        ]
+      })
+
+      this.hot1&&this.hot1.setDataAtRowProp(renderArr, 'funcRender')
     },
     createCanvas(node) {
       let Canvas = document.createElement("canvas");
@@ -500,6 +521,16 @@ export default {
       this.createInput(node);
       return Canvas;
     },
+    quitFunctionEditor() {
+      this.drawStep = [];
+      let Canvas = this.canvasNode;
+      let ctx = Canvas.getContext("2d");
+      let Input = this.inputNode;
+      Input.value = "";
+      ctx.clearRect(0, 0, Canvas.width, Canvas.height);
+      Input.style.display = "none";
+      this.inputDisplay.style.display = "none";
+    },
     quitEditor(shouldSaveData, shouldGetFocus) {
       const Input = this.inputNode;
 
@@ -507,10 +538,13 @@ export default {
         this.hot1.setDataAtCell(Input.row, Input.col, Input.value);
       }
       this.quitFunctionEditor();
-      // this.hot1.destroyEditor();
-      if (Input.quitCallbacks) {
-        Input.quitCallbacks.forEach(ele => ele());
+      for (const key in Input.quitCallbacks) {
+        if (Input.quitCallbacks.hasOwnProperty(key)) {
+          Input.quitCallbacks[key]()
+          
+        }
       }
+      
       if (shouldGetFocus) {
         setTimeout(() => {
           this.hot1.selectCell(Input.row, Input.col, Input.row, Input.col);
@@ -526,7 +560,7 @@ export default {
       this.inputDisplay = InputDisplay;
       node.insertBefore(Input, this.canvasNode);
       node.insertBefore(InputDisplay, this.canvasNode);
-      Input.quitCallbacks = [];
+      Input.quitCallbacks = {};
       Input.addEventListener("keydown",(e)=> {
         // enter
         if (e.keyCode === 13 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
@@ -566,7 +600,7 @@ export default {
       });
     },
 
-    drawInput( value, startEdit) {
+    drawInput(value, startEdit) {
       let Input = this.inputNode;
       let InputDisplay = this.inputDisplay;
       const row = Input.row;
@@ -580,7 +614,6 @@ export default {
       InputDisplay.style.width = Input.style.width
       InputDisplay.style.height = Input.style.height
       Input.changeVal(value);      
-      // this.drawFromInput();
       Input.style.display = "block";
       InputDisplay.style.display = "block";
       this.hot1.deselectCell();
@@ -608,25 +641,29 @@ export default {
         let selectStr, selectBeforeStr, selectEndStr;
         selectBeforeStr = Input.value.slice(0, Input.selectionStart);
         selectEndStr = Input.value.slice(Input.selectionEnd);
+        selectCall.callback = false;
+        if(window.debug){
+          console.log(selectBeforeStr, ' + ', selectStr, ' + ', selectEndStr)
+          console.log(Input.selectionStart, Input.selectionEnd)
+        }
         //  光标位置检测
         if (!Input.selectionStart === Input.selectionEnd) {
-
           selectStr = Input.value.slice(
             Input.selectionStart,
             Input.selectionEnd
           );
          
-          if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)/.test(selectStr)) {
+          if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)/i.test(selectStr)) {
 
             selectCall.callback = str => {
               Input.changeVal(selectBeforeStr + str + selectEndStr);
             };
           }
         } else {
-          if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/.test(selectBeforeStr)) {
+          if (/([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/i.test(selectBeforeStr)) {
             
             let localSelectedRange = selectBeforeStr.match(
-              /([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/
+              /([a-z]\d+\:[a-z]\d+|[a-z]\d+)$/i
             )[0];
             let reg = new RegExp(localSelectedRange + "$");
             selectCall.callback = str => {
@@ -635,7 +672,7 @@ export default {
           }
 
           if (
-            /[\*\/\-\+\(\:)]{1}$/.test(selectBeforeStr) ||
+            /[\*\/\-\+\(\:\^]{1}$/.test(selectBeforeStr) ||
             /^\=$/.test(selectBeforeStr)
           ) {
             selectCall.callback = str => {
@@ -643,9 +680,13 @@ export default {
             };
           }
         }
-
+        let cacheSelectionStart= Input.value.length - Input.selectionStart;
+        let cacheSelectionEnd= Input.value.length -  Input.selectionEnd;
         let selectedRangeStr = selectRange(r, c, r2, c2);
         selectCall.callback && selectCall.callback(selectedRangeStr);
+        console.log(Input.value.length )
+        console.log(cacheSelectionStart, cacheSelectionEnd)
+        selectCall.callback && Input.setSelectionRange(Input.value.length - cacheSelectionStart,Input.value.length  - cacheSelectionEnd)
         Input.focus();
       };
 
@@ -656,15 +697,16 @@ export default {
         Input.style.height = Input.scrollHeight + 4 + "px";
         this.inputDisplay.style.height = Input.style.height;
         if (!/^=/.test(Input.value)) {
+          console.log(false)
           return false;
         }
         Input.isSelecting = true;
         this.hot1.addHook("afterSelectionEnd", selectCall);
         // 编辑器的'退出回掉'中注入'清除选择单元格'的监听函数
-        Input.quitCallbacks.push(() => {
+        Input.quitCallbacks.clearSelect = () => {
           Input.isSelecting = false;
           this.hot1.removeHook("afterSelectionEnd", selectCall);
-        });
+        };
       };
       checkToStartSelect();
       Input.addEventListener("input", checkToStartSelect);
@@ -681,10 +723,6 @@ export default {
           this.quitEditor(true);
         }
       };
-
-      Input.quitCallbacks.push(() =>
-        window.removeEventListener("click", clickHandle)
-      );
 
       setTimeout(() => window.addEventListener("click", clickHandle));
       return Input;
@@ -706,11 +744,12 @@ export default {
     },
     drawFromInput() {
       if (!/^=/.test(this.inputNode.value)) {
-        return false;
+        this.inputDisplay.innerHTML = this.inputNode.value
+        return false 
       }
-      this.drawStep = [];
       let displayValue = this.inputNode.value.replace(/([a-z]+\d+\:[a-z]+\d+|[a-z]+\d+)/gi,'<span>$1</span>')
       this.inputDisplay.innerHTML=displayValue
+      this.drawStep = [];
       try {
         this.inputNode.value
           .match(/([a-z]+\d+\:[a-z]+\d+|[a-z]+\d+)/gi)
@@ -744,16 +783,7 @@ export default {
         console.log(error);
       }
     },
-    quitFunctionEditor() {
-      this.drawStep = [];
-      let Canvas = this.canvasNode;
-      let ctx = Canvas.getContext("2d");
-      let Input = this.inputNode;
-      ctx.clearRect(0, 0, Canvas.width, Canvas.height);
-      Input.style.display = "none";
-      this.inputDisplay.style.display = "none";
-      Input.value = "";
-    },
+
     changeCellType(type) {
       let self = this;
       for (var i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
@@ -1406,6 +1436,8 @@ td {
   font-size: 14px;
   box-sizing: border-box !important;
   overflow: hidden;
+  -webkit-padding-start: 1px;
+  -webkit-padding-end: 1px;
   &::selection {
     color: #3390ff; /* WebKit/Blink Browsers */
     background: #3390ff;
@@ -1433,6 +1465,8 @@ td {
   pointer-events: none;
   text-align-last: left;
   border: 2px solid rgb(82, 146, 247);
+  -webkit-padding-start: 1px;
+  -webkit-padding-end: 1px;
   span{
     border-radius: 6px;
     &:nth-child(7n+1){
