@@ -1,15 +1,12 @@
 <template>
     <section class="excel-wrap" ref="excelWrap" v-if="!isDelete">
       <div class="flex-wrap">
-
-   
         <!-- <el-input class="table-name" v-model='tableName'></el-input> -->
         <div class="btn-handle-2">
           <!-- <el-button 
             v-if="isEdit"
             type="text" 
             @click="editTable">编辑表</el-button> -->
-
           <el-button 
             type="text" 
             @click="saveTable"
@@ -53,20 +50,18 @@
         </div>
 
         <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
-        <div class="chart-wrap">
-          <IEcharts
-            style="width:100%;height:100%;text-align:left"
-            :option="chartOption" 
-            />
+        <div class="chart-wrap" v-for="(item, index) in chartOptionsSourse" :key="index">
+            <Charts :optionsSourse ="item"
+              :changeHandle ="v=>chartControllerHandle(v,index)"
+              :chartsUnit = "excelCharts"
+            >
+            </Charts>
         </div>
-        <div class="chart-wrap">
-          <IEcharts
-            style="width:100%;height:100%;text-align:left"
-            :option="chartOptionFull" 
-            />
-        </div>
-        <Charts :options="chartOption" >
-        </Charts>
+        <!-- <div class="chart-wrap">
+            <Charts :options="chartOptionFull" >
+            </Charts>
+        </div> -->
+      
       </div>
     </section>
 
@@ -97,8 +92,8 @@ export default {
   data() {
     var self = this;
     return {
-      chartOption: {},
-      chartOptionFull: {},
+      excelCharts:excelCharts,
+      chartOptionsSourse: [],
       excelFunctionsOptions: Object.keys(excelFunctions).map(ele => ({
         value: ele,
         label: excelFunctions[ele].name
@@ -151,7 +146,7 @@ export default {
         },
         className: "htCenter htMiddle",
         afterSelectionEnd(r,c,r2,c2){
-          self.hot1[Symbol.for('lastSelected')] = [r,c,r2,c2]
+          self.hot1[Symbol.for('lastSelected')] = self.hot1.getSelected()
           if(self.funcStore[`${r}-${c}`]&& /^=/.test(self.funcStore[`${r}-${c}`])){
             self.$refs.funcInput.value = self.funcStore[`${r}-${c}`]
           }else{
@@ -452,7 +447,7 @@ export default {
     "hotSettings.data": function(newVal, oldVal) {
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
-    }
+    },
   },
 
   computed: {
@@ -469,21 +464,44 @@ export default {
     },
     idName() {
       return `excel${this.id}`;
-    }
+    },
   },
 
   methods: {
-    chartSelect(v) {
+    chartSelect(v, i) {
       const selectRange = this.hot1[Symbol.for('lastSelected')]
-      let data = this.hot1.getData(...selectRange)
-      this.chartOption = excelCharts[v].func(
-        data
-      );
+      let dataRange = selectRange.map(ele=>this.hot1.getData(...ele))
+      let data = dataRange[0].map((ele, index)=>{
+        let newArr = [];
+        for (const iterator of dataRange) {
+          console.log(newArr, iterator[index])
+          newArr = [...newArr, ...iterator[index]]
+        }
+        return newArr
+      })
+      this.chartOptionsSourse.push({
+        data,
+        type: v
+      })
+
     },
     chartSelectFull(v) {
-      this.chartOptionFull = excelCharts[v].func(
-        JSON.parse(this.getExcelData().tableData)
-      );
+       this.chartOptionsSourse.push({
+        data: JSON.parse(this.getExcelData().tableData),
+        type: v
+      })
+
+    },
+    chartControllerHandle(v,index){
+      console.log(v,index)
+      switch (v){
+        case 'transpose':
+          this.chartOptionsSourse.splice(index,1,{
+            ...this.chartOptionsSourse[index],
+            ...{transpose:!this.chartOptionsSourse[index].transpose}
+          } )
+        break
+      }
     },
     // function
     funcSelect(v) {
@@ -1501,7 +1519,7 @@ td {
   width: calc(50% - 10px);
   margin-right: 20px;
   box-sizing: border-box;
-  &:last-child{
+  &:nth-child(odd){
     margin-right: 0;
   }
 }

@@ -89,7 +89,7 @@ export default {
       border-right: none;
       border-bottom: none;
       background: #fff;
-      z-index: 2;
+      z-index: 1;
       transform: rotate(45deg);
     }
     li {
@@ -102,6 +102,9 @@ export default {
       font-size: 12px;
       line-height: 36px;
       white-space: nowrap;
+      background: #fff;
+      position: relative;
+      z-index: 2;
       &:hover {
         background: #fffbe0;
       }
