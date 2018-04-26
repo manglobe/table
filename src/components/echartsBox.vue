@@ -63,12 +63,14 @@ export default {
 
   },
   mounted(){
+    setTimeout(()=>{
       this.chart = echarts.init(this.$refs.box)
       this.chart.setOption(this.options);
+    })
   },
   updated(){
       this.chart.clear();
-      this.chart.setOption(this.options);
+      this.chart.setOption({...this.options,...{animation:false}});
   }
 }
 </script>

@@ -107,12 +107,20 @@ const checkData = data => {
 
 const chartDataFilter = dataSourse => {
   let filtedData = dataSourse.filter(ele => ele.join('') !== '');
+  if(filtedData.length === 0){
+    return {
+      column:[],
+      row:[],
+      data:[],
+    }
+  }
   filtedData = transpose(transpose(filtedData).filter(ele => ele.join('') !== ''))
+
   let column = filtedData.map(ele => ele[0]);
   let row = filtedData[0];
   let data = filtedData;
   const isDataType = value=>/^\d+(\.\d+)?%?$/.test(String(value));
-  if(filtedData[0][0] === (''||null)){
+  if(filtedData[0][0] === ''|| filtedData[0][0] === null){
     data = data.slice(1).map(ele => ele.slice(1))
     row = row.slice(1)    
     column = column.slice(1)
@@ -148,7 +156,7 @@ const chartDataFilter = dataSourse => {
   //   // column = column.slice(1)
     
   // }
-
+  data= data.map(ele=>ele.map(ele2=>ele2===''?0:ele2))
   const checkResult = checkData(data)
   if (checkResult.type === 'error') {
     return checkResult.msg
@@ -161,6 +169,7 @@ const chartDataFilter = dataSourse => {
     type: checkResult.type
   }
 }
+import echarts from 'echarts';
 export const excelCharts = {
   sum: {
     name: '折线图',
@@ -174,8 +183,15 @@ export const excelCharts = {
           // subtext: ' '
         },
         legend: {
+          type: 'scroll',
           bottom: 10,
-          data: filtedData.column
+          data: filtedData.column,
+          formatter: function (name) {
+            return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
+          },
+          tooltip: {
+            show: true
+          },
         },
         tooltip: {
           trigger: 'axis'
@@ -216,11 +232,12 @@ export const excelCharts = {
     name: '柱状图（簇形）',
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
+
       return {
         title: {
           top: 10,
           left: 'center',
-          text: '图表标题',
+          text: dataSourse.title,
           // subtext: ' '
         },
         legend: {
@@ -264,7 +281,7 @@ export const excelCharts = {
         title: {
           top: 10,
           left: 'center',
-          text: '图表标题',
+          text: dataSourse.title,
           // subtext: ' '
         },
         legend: {

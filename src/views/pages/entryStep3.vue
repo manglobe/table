@@ -38,12 +38,25 @@
 		    			<el-button type="primary">从文件中导入图片</el-button>
 		    			<span slot='tip' class='el-upload_tip'>只支持jpg/png格式，最张不超过1MB，最多上传10张</span>
 		    		</el-upload> -->
+		    		<el-upload
+		    		  action='/api/file/upload'
+		    		  :headers='headers'
+		    		  :before-upload='beforeAvatarUpload'
+		    		  :on-success='qualityAnalysisUploaded'
+					  :on-remove="removeQualityAnalysisPic"
+		    		  :file-list="filelist1"
+		    		  list-type='picture'
+		    		  multiple>
+					  	<el-button ref='imgUpload' type="primary">从文件中导入图片</el-button>
+
+		    		</el-upload>
 		    	</div>
 		    	<div class="part">
 		    		<div class="title">原因分析：</div>
-		    		<quill-editor		    		 
-		    		 v-model='oldResult.reasonAnalysis'
-		    		 :options="editorOption"></quill-editor>
+		    		<quill-editor	
+						ref='editor'  		 
+						v-model='oldResult.reasonAnalysis'
+						:options="editorOption"></quill-editor>
 		    	</div>
 		    	<div class="part">
 		    		<div class="title">改进措施：</div>
@@ -79,7 +92,7 @@
 	import 'quill/dist/quill.core.css'
 	import 'quill/dist/quill.snow.css'
 	import 'quill/dist/quill.bubble.css'
-    import { quillEditor } from 'vue-quill-editor';
+    import def, { quillEditor } from 'vue-quill-editor';
     import service from '@/service/service';
 	import handleObject from '@/util/handleObject';
 
@@ -108,7 +121,8 @@
 					// theme: 'bubble',
 					placeholder: '请输入内容',
 					modules: {
-						toolbar: [
+						toolbar:
+						[
 							['bold','italic','underline','strike'],
 							['blockquote', 'code-block'],
 							[{'header': 1}, {'header': 2}],
@@ -121,8 +135,9 @@
 							[{'color':[]},{'background':[]}],
 							[{'font':[]}],
 							[{'align':[]}],
-							[ 'image']
-						]
+							['image'],
+						],
+						
 					}				
 				},
 				headers: {
@@ -236,17 +251,17 @@
 					}
 				}					
 			},
-			// beforeAvatarUpload(file) {
-			// 	const isPIC = file.type == 'image/jpeg' || file.type == 'image/png';
-			// 	const isLt1M = file.size/1024/1024 < 1;
-			// 	if(!isPIC) {
-			// 		this.$message.error('上传图片只能是jpg/jpeg/png格式！');
-			// 	}
-			// 	if(!isLt1M) {
-			// 		this.$message.error('上传图片大小不能超过1MB！');
-			// 	}
-			// 	return isPIC && isLt1M;
-			// },
+			beforeAvatarUpload(file) {
+				const isPIC = file.type == 'image/jpeg' || file.type == 'image/png';
+				const isLt1M = file.size/1024/1024 < 1;
+				if(!isPIC) {
+					this.$message.error('上传图片只能是jpg/jpeg/png格式！');
+				}
+				if(!isLt1M) {
+					this.$message.error('上传图片大小不能超过1MB！');
+				}
+				return isPIC && isLt1M;
+			},
 			//效果分析图片上传成功回掉函数
 			effectiveAnalysisUploaded(res, file, fileList) {
 				if(res.responseCode == 0 && res.code == 0) {
@@ -279,6 +294,18 @@
 		},
 		components: {
 			quillEditor,
+		},
+		mounted(){
+			const _this = this
+			const imgHandler = async function(image) {
+				_this.addImgRange = _this.$refs.editor.quill.getSelection()
+				if (image) {
+					const fileInput = _this.$refs.imgUpload 
+					fileInput.$el.click()
+				}
+			}
+ 
+			_this.$refs.editor.quill.getModule('toolbar').addHandler('image', imgHandler)
 		}
 	}
 </script>

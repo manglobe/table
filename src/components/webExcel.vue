@@ -54,7 +54,7 @@
           class="chart-wrap" 
           v-for="(item, index) in chartOptionsSourse" 
           :key="index" 
-          :class="{ 'title-editing': item.isTitleEditing }"
+          :class="{ 'title-editing':titleEditingIndex === index }"
           @mouseenter = "()=>toggleChartsRange(item,true)"
           @mouseleave = "()=>toggleChartsRange(item,false)"
         >
@@ -112,7 +112,7 @@ export default {
     var self = this;
     return {
       excelCharts:excelCharts,
-      chartOptionsSourse: [],
+      chartOptionsSourse: self.propTable.imgData?JSON.parse(self.propTable.imgData):[],
       excelFunctionsOptions: Object.keys(excelFunctions).map(ele => ({
         value: ele,
         label: excelFunctions[ele].name
@@ -121,6 +121,7 @@ export default {
         value: ele,
         label: excelCharts[ele].name
       })),
+      titleEditingIndex:'',
       drawStep: [],
       chartStep: [],
       funcStore: {},
@@ -156,6 +157,7 @@ export default {
         rowHeaderWidth: 52,
         rowHeights: 40,
         columnHeaderHeight: 40,
+        autoRowSize: {syncLimit: '40%'},
         outsideClickDeselects: eventTarget => {
           if (
             self.$refs.funcSelect.$refs.mySelect.contains(eventTarget) ||
@@ -328,6 +330,9 @@ export default {
             self.funcRender();
           }
           if (changes) {
+
+            console.log(changes);
+            self.chartDataUpload();
             self.isEdit = true;
             self.$emit("whetherSave", self.isEdit, self.id);
           }
@@ -484,6 +489,9 @@ export default {
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
     },
+    "chartOptionsSourse":function(){
+      this.isEdit = true;
+    }
   },
 
   computed: {
@@ -504,25 +512,43 @@ export default {
   },
 
   methods: {
+    chartDataUpload(){
+      this.chartOptionsSourse = this.chartOptionsSourse.map(ele=>{
+        return{
+          ...ele,
+          ...{
+            data: this.computeChartData(ele.range)
+          }
+        }
+      })
+    },
+    computeChartData(selectRange){
+      let dataRange = selectRange.map(ele=>this.hot1.getData(...ele));
+      let data = dataRange[0]
+      if(dataRange.length>0){
+        // 多段选择
+          if(dataRange[0][0].constructor.name === 'Array'){
+            data = dataRange[0].map((ele, index)=>{
+              let newArr = [];
+              for (const iterator of dataRange) {
+                newArr = [...newArr, ...iterator[index]]
+              }
+                return newArr
+            });
+          }else{
+
+          }
+      }
+      return data
+    },
     chartSelect(v, i) {
       const selectRange = this.hot1[Symbol.for('lastSelected')]
-      let dataRange = selectRange.map(ele=>this.hot1.getData(...ele));
-      console.log(dataRange)
-
-      let data = dataRange[0].map((ele, index)=>{
-        let newArr = [];
-        for (const iterator of dataRange) {
-          // console.log(newArr, iterator[index])
-          newArr = [...newArr, ...iterator[index]]
-        }
-          return newArr
-      });
+      let data = this.computeChartData(selectRange)
       this.chartOptionsSourse.push({
         data,
         type: v,
         title:'图表标题',
         transpose: false,
-        isTitleEditing: false,
         range: selectRange
       })
 
@@ -533,13 +559,11 @@ export default {
         type: v,
         title:'图表标题',
         transpose: false,
-        isTitleEditing: false,
         range:'full'
       })
 
     },
     chartControllerHandle(v,index){
-      console.log(v,index)
       switch (v){
         case 'transpose':
           this.chartOptionsSourse.splice(index,1,{
@@ -549,21 +573,40 @@ export default {
 
         break
         case 'editorTitle':
-          this.chartOptionsSourse.splice(index,1,{
-            ...this.chartOptionsSourse[index],
-            ...{isTitleEditing:true}
-          } )
-
+          this.titleEditingIndex=index
         break
-
+        case 'delete':
+          this.$confirm(
+            this.$createElement('p',  {class:"confirm-message" }, [
+              this.$createElement('svg', null, [
+                 this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}, class:'xxx'},null)
+              ]),
+              this.$createElement('span', null, '确定要删除该表格吗？')
+            ]),
+            {
+              confirmButtonText: "确定",
+              cancelButtonText: "取消"
+            }
+          )
+          .then(() => {
+            this.chartOptionsSourse.splice(index,1)
+          })
+          .catch(() => {
+            return false;
+          });
+        break
+        default: 
+          console.log('chartControllerHandle error');
       }
     },
     quitChartEditor(index, save){
-      this.chartOptionsSourse.splice(index,1,{
-        ...this.chartOptionsSourse[index],
-        ...{isTitleEditing:false},
-        ...save?{title:this.chartTitleEditorCacheValue}:{}
-      } )
+      this.titleEditingIndex = '';
+      if(save){
+        this.chartOptionsSourse.splice(index,1,{
+          ...this.chartOptionsSourse[index],
+          ...{title:this.chartTitleEditorCacheValue}
+        } )
+      }
     },
     titleEditorKeydownHandle(e,index){
       if(e.keyCode===13){
@@ -576,10 +619,10 @@ export default {
     toggleChartsRange(item,show){
       if(show){
         if(item.range==='full'){
-          this.addChartStep('full', 'chartStep')
+          this.addDrawStep('full', 'chartStep')
         }else{
           item.range.forEach(ele=>{
-            this.addChartStep(...ele,'chartStep')
+            this.addDrawStep(...ele,'chartStep')
           })
         }
       }else{
@@ -587,8 +630,10 @@ export default {
       }
         this.drawCanvas()
     },
-    addChartStep(r, c, r2, c2,...type) {
-      const _this =this 
+    addDrawStep(r, c, r2, c2,type) {
+      const _this =this;
+      //  _this.hot1.getPlugin('autoRowSize').recalculateAllRowsHeight()
+      const rowsHeight = _this.hot1.getPlugin('autoRowSize').heights.map(ele=>ele<_this.hotSettings.rowHeights?_this.hotSettings.rowHeights:ele)
       if(r === 'full'){
         _this[c].push({
             render(ctx, color) {
@@ -597,19 +642,20 @@ export default {
             _this.hotSettings.rowHeaderWidth,
             _this.hotSettings.columnHeaderHeight,
             _this.$refs.excel.clientWidth-_this.hotSettings.rowHeaderWidth,
-            _this.$refs.excel.clientHeight-_this.hotSettings.columnHeaderHeight -4 
+            eval(rowsHeight.join('+')) 
           );
         }
         })
       }
-      this.chartStep.push({
+
+      this[type||'drawStep'].push({
         render(ctx, color) {
           ctx.strokeStyle = color;
           ctx.strokeRect(
             _this.hotSettings.rowHeaderWidth + c *  _this.hotSettings.colWidths,
-            _this.hotSettings.columnHeaderHeight + r * _this.hotSettings.rowHeights,
+            _this.hotSettings.columnHeaderHeight + (eval(rowsHeight.slice(0,r).join('+'))||0),
             (c2 - c + 1) * _this.hotSettings.colWidths ,
-            (r2 - r + 1) * _this.hotSettings.rowHeights
+            eval(rowsHeight.slice(r,r2+1).join('+'))
           );
         }
       });
@@ -737,10 +783,12 @@ export default {
       let InputDisplay = this.inputDisplay;
       const row = Input.row;
       const col = Input.col;
-      Input.style.top = this.hotSettings.columnHeaderHeight +  row* this.hotSettings.rowHeights + "px";
+      const rowsHeight = this.hot1.getPlugin('autoRowSize').heights.map(ele=>ele<this.hotSettings.rowHeights?this.hotSettings.rowHeights:ele)
+
+      Input.style.top = this.hotSettings.columnHeaderHeight +  (eval(rowsHeight.slice(0,row).join('+'))||0) + "px";
       Input.style.left = this.hotSettings.rowHeaderWidth + col * this.hotSettings.colWidths + "px";
       Input.style.width = this.hotSettings.colWidths + 2 + "px";
-      Input.style.height = this.hotSettings.rowHeights + 1 + "px";
+      Input.style.height = rowsHeight[row]+ 'px';
       InputDisplay.style.top = Input.style.top
       InputDisplay.style.left = Input.style.left
       InputDisplay.style.width = Input.style.width
@@ -774,10 +822,6 @@ export default {
         selectBeforeStr = Input.value.slice(0, Input.selectionStart);
         selectEndStr = Input.value.slice(Input.selectionEnd);
         selectCall.callback = false;
-        if(window.debug){
-          console.log(selectBeforeStr, ' + ', selectStr, ' + ', selectEndStr)
-          console.log(Input.selectionStart, Input.selectionEnd)
-        }
         //  光标位置检测
         if (!Input.selectionStart === Input.selectionEnd) {
           selectStr = Input.value.slice(
@@ -816,8 +860,6 @@ export default {
         let cacheSelectionEnd= Input.value.length -  Input.selectionEnd;
         let selectedRangeStr = selectRange(r, c, r2, c2);
         selectCall.callback && selectCall.callback(selectedRangeStr);
-        console.log(Input.value.length )
-        console.log(cacheSelectionStart, cacheSelectionEnd)
         selectCall.callback && Input.setSelectionRange(Input.value.length - cacheSelectionStart,Input.value.length  - cacheSelectionEnd)
         Input.focus();
       };
@@ -829,7 +871,6 @@ export default {
         Input.style.height = Input.scrollHeight + 4 + "px";
         this.inputDisplay.style.height = Input.style.height;
         if (!/^=/.test(Input.value)) {
-          console.log(false)
           return false;
         }
         Input.isSelecting = true;
@@ -860,20 +901,20 @@ export default {
       return Input;
     },
 
-    selectTd(r, c, r2, c2) {
-      const _this =this 
-      this.drawStep.push({
-        render(ctx, color) {
-          ctx.strokeStyle = color;
-          ctx.strokeRect(
-            _this.hotSettings.rowHeaderWidth + c *  _this.hotSettings.colWidths,
-            _this.hotSettings.columnHeaderHeight + r * _this.hotSettings.rowHeights,
-            (c2 - c + 1) * _this.hotSettings.colWidths ,
-            (r2 - r + 1) * _this.hotSettings.rowHeights
-          );
-        }
-      });
-    },
+    // selectTd(r, c, r2, c2) {
+    //   const _this =this 
+    //   this.drawStep.push({
+    //     render(ctx, color) {
+    //       ctx.strokeStyle = color;
+    //       ctx.strokeRect(
+    //         _this.hotSettings.rowHeaderWidth + c *  _this.hotSettings.colWidths,
+    //         _this.hotSettings.columnHeaderHeight + r * _this.hotSettings.rowHeights,
+    //         (c2 - c + 1) * _this.hotSettings.colWidths ,
+    //         (r2 - r + 1) * _this.hotSettings.rowHeights
+    //       );
+    //     }
+    //   });
+    // },
     drawFromInput() {
       if (!/^=/.test(this.inputNode.value)) {
         this.inputDisplay.innerHTML = this.inputNode.value
@@ -899,7 +940,7 @@ export default {
                   .charCodeAt(0) - 65;
               const r = ele.match(/\d+/g)[0] - 1;
               const r2 = ele.match(/\d+/g)[1] - 1;
-              this.selectTd(r, c, r2, c2);
+              this.addDrawStep(r, c, r2, c2);
             } else {
               const c =
                 ele
@@ -907,7 +948,7 @@ export default {
                   .toUpperCase()
                   .charCodeAt(0) - 65;
               const r = ele.match(/\d+/g)[0] - 1;
-              this.selectTd(r, c, r, c);
+              this.addDrawStep(r, c, r, c);
             }
           });
         this.drawCanvas();
@@ -1221,7 +1262,7 @@ export default {
       };
     },
     saveTable() {
-      let params = this.getExcelData();
+      let params = {...this.getExcelData(),...{imgData: JSON.stringify(this.chartOptionsSourse)}};
       this.saving = true;
       this.isEdit = false;
       if (!this.new) {
@@ -1541,7 +1582,7 @@ td {
     width: 100%;
     height: 100%;
     position: absolute;
-    z-index: 2;
+    z-index: 105;
     // background: rgba(122, 20, 233, 0.1);
     top: 0;
     left: 0;
@@ -1577,6 +1618,7 @@ td {
 }
 .layer-input-display {
   display: none;
+  text-align: start;
   word-break: break-all;
   position: absolute;
   z-index: 105;
@@ -1705,6 +1747,20 @@ td {
       transform: translate(0,0);
       transition: 0.6s;
       
+    }
+  }
+  .confirm-message{
+    text-align: center;
+    svg{
+      width: 24px;
+      height: 24px;
+      margin: 0 12px;
+      vertical-align: middle;
+    }
+    span{
+      font-size: 14px;
+      color: #333333;
+      vertical-align: middle;      
     }
   }
 }
