@@ -2,9 +2,10 @@
 	<div>
 	    <div class="steps">
 			<span class="step stepActive" @click="confirmGotoStep(1)">1、定义指标</span>
-			<span class="step stepActive"><span class="arrow arrowActive"></span>2、新增查检表</span>
-			<span class="step" @click="confirmGotoStep(3)"><span class="arrow arrowActive"></span>3、生成报表</span>
-			<span class="step" @click="confirmGotoStep(4)"><span class="arrow"></span>4、分析结果</span>
+			<span class="step stepActive"><span class="arrow arrowActive"></span>2、新增图表</span>
+			<span class="step" @click="confirmGotoStep(3)"><span class="arrow arrowActive"></span>3、分析结果</span>
+			<!-- <span class="step" @click="confirmGotoStep(3)"><span class="arrow arrowActive"></span>3、生成报表</span> -->
+			<!-- <span class="step" @click="confirmGotoStep(4)"><span class="arrow"></span>4、分析结果</span> -->
 		</div>
 		<div class="button-wrapper">
            <div class="creat-excel-btn">

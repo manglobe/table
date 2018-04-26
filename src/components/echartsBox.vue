@@ -1,5 +1,5 @@
 <template>
-  <div class="charts-box" :data-option = "options">
+  <div class="charts-box" :data-option = "options" >
     <div class= "charts-controller">
       <span class="controller-icons">
         <i></i>
@@ -16,7 +16,7 @@
   </div>
 </template>
 <script>
-import echarts from 'Echarts';
+import echarts from 'echarts';
 export default {
   props:{
       optionsSourse:{
@@ -41,9 +41,13 @@ export default {
               value: 'editorTitle',
               label: '修改标题'
             },
+            // {
+            //   value: 'editorLegend',
+            //   label: '修改图例'
+            // },
             {
-              value: 'editorLegend',
-              label: '修改图例'
+              value: 'delete',
+              label: '删除图表'
             },
           ]
       }
@@ -54,6 +58,9 @@ export default {
         this.optionsSourse
       )
     }
+  },
+  method:{
+
   },
   mounted(){
       this.chart = echarts.init(this.$refs.box)

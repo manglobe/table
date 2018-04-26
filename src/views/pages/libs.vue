@@ -99,7 +99,7 @@
 				<el-table-column prop="recordDate" label="录入时间">
 				</el-table-column>
 				<el-table-column label="操作" width='160'>
-					<template scope="scope">
+					<template slot-scope="scope">
 						<el-button
 						style="font-family: Microsoft YaHei;" 
 						type="text"
@@ -345,38 +345,15 @@ export default {
     }
   }
   .el-pagination {
-    @include align-justify-center;
-    height: 80px;
+    // @include align-justify-center;
+    height: 40px;
     background-color: #fff;
-	button{
-		background: #F5F5F5;
-		border: 1px solid #D8D8D8;
-		width: 30px;
-		height: 30px;
-		min-width: 0;
-		line-height: 30px;
-		padding: 0;
-		color: #999;
-	 	&:hover{
-			background: #edfcf9;
-			color: #999;
-		}
-	}
-	li{
-		color: #999;
-		font-size: 12px;
-		width: 30px;
-		height: 30px;
-		line-height: 30px;
-		min-width: 0;
-		font-weight: normal;
-		&:hover{
-			background: #edfcf9;
-		}
-		&.active{
-			color: #06AEA6;
-		}
-	}
+    padding-top: 20px;
+    text-align: center;
+    .el-pagination__editor{
+      padding: 0 2px;
+      border: none;
+    }
   }
 }
 </style>

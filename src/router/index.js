@@ -12,7 +12,7 @@ import Index from '@/views/common/index'
 import EntryStep1 from '@/views/pages/entryStep1.vue'
 import EntryStep2 from '@/views/pages/entryStep2.vue'
 import EntryStep3 from '@/views/pages/entryStep3.vue'
-import EntryStep4 from '@/views/pages/entryStep4.vue'
+// import EntryStep4 from '@/views/pages/entryStep4.vue'
 import libs from '@/views/pages/libs.vue'
 import Preview from '@/views/pages/OldCharts'
 
@@ -50,11 +50,11 @@ export default new Router({
     				name: 'entryStep3',
     				component: EntryStep3,
     			},
-    			{
-    				path: 'entryStep4',
-    				name: 'entryStep4',
-    				component: EntryStep4,
-    			},
+    			// {
+    			// 	path: 'entryStep4',
+    			// 	name: 'entryStep4',
+    			// 	component: EntryStep4,
+    			// },
 	        	{
 		    		path: 'libs',
 		    		name: 'libs',

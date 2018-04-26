@@ -170,7 +170,7 @@ export const excelCharts = {
         title: {
           top: 10,
           left: 'center',
-          text: '图表标题',
+          text: dataSourse.title,
           // subtext: ' '
         },
         legend: {

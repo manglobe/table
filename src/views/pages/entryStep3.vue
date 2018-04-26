@@ -1,257 +1,328 @@
 <template>
 	<div>
-	    <div class="steps">
+		<div class="steps">
 			<span class="step stepActive" @click="gotoStep(1)">1、定义指标</span>
 			<span class="step stepActive" @click="gotoStep(2)"><span class="arrow arrowActive"></span>2、新增查检表</span>
-			<span class="step stepActive"><span class="arrow arrowActive"></span>3、生成报表</span>
-			<span class="step" @click="gotoStep(4)"><span class="arrow arrowActive"></span>4、分析结果</span>
+			<span class="step stepActive"><span class="arrow arrowActive"></span>3、分析结果</span>
+			<!-- <span class="step stepActive" @click="gotoStep(3)"><span class="arrow arrowActive"></span>3、生成报表</span>
+			<span class="step stepActive"><span class="arrow arrowActive"></span>4、分析结果</span> -->
 		</div>				
 		<div class="button-wrapper">
 		    <el-button
 			  size="large"
-			  @click="gotoStep(2)">上一步</el-button>
+			  :disabled="loading"
+			  @click="gotoStep(3)">上一步</el-button>
 	    	<el-button
 	    	  type="primary" 
 	    	  size="large"
-	    	  @click="gotoStep(4)">下一步</el-button>
-	    </div>	    
-	    <div class="entry-step-3">
-		    <div class="check-group">
-				<div style="margin-bottom: 10px;font-size: 16px;">请选择哪些表需要按照原始数据生成图</div>
-				<el-checkbox 
-				  style="margin-bottom: 10px;"			 
-				  v-model="checkAll"
-				  @change="handleCheckAllChange">全选</el-checkbox>
-				<el-checkbox-group 
-				  v-model="checkList"
-				  @change="handleCheckTableChange">
-					<el-checkbox
-					  v-for="(tableInfo, index) in tablesInfo"
-					  :key="index" 
-					  :label="tableInfo.tableId">
-						<span>{{tableInfo.tableName.length > 7 ? tableInfo.tableName.slice(0,7) + '...' : tableInfo.tableName}}</span>
-						<span class="tool-tip">
-							{{tableInfo.tableName}}
-							<div class="arrow"></div>
-						</span>
-					</el-checkbox>
-				</el-checkbox-group>
-				<div style="text-align: center;margin-top: 15px;">
-					<el-button
-					  type="primary"
-					  :disabled="hasTables" 
-					  @click="generateCharts">生成图</el-button>
-			    	<el-button
-			    	  :disabled="hasTables" 		    	  
-			    	  @click="resetCharts">重 置</el-button>
-				</div>
-			</div>
-			<div class="echarts-wrapper">
-				<echarts-wrapper 
-				  v-for='(EChart, index) in ECharts'
-				  :key='index'
-				  :chart='EChart'></echarts-wrapper>
-			</div>	
-		</div>
-	</div>	
+	    	  :disabled="loading"
+	    	  @click="save">保 存</el-button>
+	    </div>
+	    <div class="entry-step entry-step-4">
+	    	<div 
+	    	  v-loading="loading" 
+	    	  element-loading-text="拼命保存中"
+	    	  style='width: 100%;height: 100%;'></div>
+	        <div class="entry-step-inner">
+		    	<div class="part">
+		    		<div class="title">质量分析：</div>
+		    		<!-- <el-upload
+		    		  action='/file/upload'
+		    		  :headers='headers'
+		    		  :before-upload='beforeAvatarUpload'
+		    		  :on-success='qualityAnalysisUploaded'
+		    		  :on-remove="removeQualityAnalysisPic"
+		    		  :file-list="filelist1"
+		    		  list-type='picture'
+		    		  multiple>
+		    			<el-button type="primary">从文件中导入图片</el-button>
+		    			<span slot='tip' class='el-upload_tip'>只支持jpg/png格式，最张不超过1MB，最多上传10张</span>
+		    		</el-upload> -->
+		    	</div>
+		    	<div class="part">
+		    		<div class="title">原因分析：</div>
+		    		<quill-editor		    		 
+		    		 v-model='oldResult.reasonAnalysis'
+		    		 :options="editorOption"></quill-editor>
+		    	</div>
+		    	<div class="part">
+		    		<div class="title">改进措施：</div>
+		    		<quill-editor		    		 
+		    		 v-model='oldResult.improvementMeasure'
+		    		 :options="editorOption"></quill-editor>
+		    	</div>
+		    	<div class="part">
+		    		<div class="title">效果分析：</div>
+		    		<!-- <el-upload
+		    		  action='/file/upload'
+		    		  :headers='headers'
+		    		  :before-upload='beforeAvatarUpload'
+		    		  :on-success='effectiveAnalysisUploaded'
+		    		  :on-remove="removeEffectiveAnalysisPic"
+		    		  :file-list="filelist2"
+		    		  list-type='picture'
+		    		  multiple>
+		    			<el-button type="primary">从文件中导入图片</el-button>
+		    			<span slot='tip' class='el-upload_tip'>只支持jpg/png格式，最张不超过1MB，最多上传10张</span>
+		    		</el-upload> -->
+		    		<quill-editor
+		    		 style="margin-top: 20px;"		    		 
+		    		 v-model='oldResult.effectiveAnalysis'
+		    		 :options="editorOption"></quill-editor>
+		    	</div>
+	    	</div>
+	    </div>
+	</div>
 </template>
 
 <script>
+	import 'quill/dist/quill.core.css'
+	import 'quill/dist/quill.snow.css'
+	import 'quill/dist/quill.bubble.css'
+    import { quillEditor } from 'vue-quill-editor';
     import service from '@/service/service';
-    import handleObject from '@/util/handleObject';
-    import echartsWrapper from '@/components/echartsWrapper.vue';
-    import NProgress from 'nprogress';
-    
-    const colorArr = [
-        "#ffb847",
-        "#29cdff",
-        "#7dd97c",
-        "#00b4a9",
-        "#239af6",
-        "#fe6b28",
-        "#fd8b8f",
-        "#7a6cf7",
-        "#779de9",
-        "#c23030",
-        "#08b53f",
-        "#f8e81c",
-    ];
+	import handleObject from '@/util/handleObject';
+
 	export default {
-		components: {
-            echartsWrapper
-        },
 		data() {
 			return {
-				ECharts: [],
-				tempTable: [],
-				tablesInfo: [],
-				checkAll: false,
-				checkList: [],
-				indicatorsTable: [],
-				checkedTables: [],
-				toggleChart: [],
-			}
+				tempData: {},
+				reason: '',
+				improve: '',
+				result: '',
+				loading: false,
+				qualityAnalysisUid: [],
+				effectiveAnalysisUid: [],
+				qualityIsClicked: false,
+				effectIsClicked: false,
+				filelist1: [],
+				filelist2: [],
+				oldResult: {
+					effectiveAnalysis: '',
+					effectiveAnalysisFbzId: '',
+					improvementMeasure: '',
+					qualityAnalysisFbzId: '',
+					reasonAnalysis: '',
+				},
+				editorOption: {
+					// theme: 'bubble',
+					placeholder: '请输入内容',
+					modules: {
+						toolbar: [
+							['bold','italic','underline','strike'],
+							['blockquote', 'code-block'],
+							[{'header': 1}, {'header': 2}],
+							[{'list':'ordered'},{'list':'bullet'}],
+							[{'script': 'sub'}, {'script': 'super'}],
+							[{'indent': '-1'},{'indent': '+1'}],
+							[{'direction': 'rtl'}],
+							[{'size': ['small', false, 'large', 'huge']}],
+							[{'header':[1,2,3,4,5,6,false]}],
+							[{'color':[]},{'background':[]}],
+							[{'font':[]}],
+							[{'align':[]}],
+							[ 'image']
+						]
+					}				
+				},
+				headers: {
+					'Accept': 'application/json, text/plain, */*',
+					// 'X-XSRF-TOKEN': 'f2f4ccc2-04bd-48c4-b575-2e63bab47dea',
+					'X-XSRF-TOKEN': this.$store.state.csrf['X-XSRF-TOKEN'],
+				},							
+			}	
 		},
 		computed: {
-			hasTables() {
-				return this.checkList.length == 0 ? true : false;
+			qualityAnalysisFbzId() {
+				return this.oldResult.qualityAnalysisFbzId ? this.oldResult.qualityAnalysisFbzId.split(',') : [];
 			},
-			// checkAll() {
-			// 	return this.indicatorsTable.length === this.checkList.length && this.checkList.length !== 0
-			// },
+			effectiveAnalysisFbzId() {
+				return this.oldResult.effectiveAnalysisFbzId ? this.oldResult.effectiveAnalysisFbzId.split(',') : [];
+			},
 		},
 		beforeRouteEnter(to, from, next) {
-			service.getOldTable(to.query.quotaId).then(res => {
-				next(vm => {
-					if(res.result){					
-						res.result.map(data => {
-							vm.tablesInfo.push({
-								tableName: data.tableName,
-								tableId: data.tableId
-							});						
-						});
-						vm.indicatorsTable = handleObject.deepClone(res.result);
-						vm.indicatorsTable.map(data => {
-							/***判断上次表格是否被选中***/
-							if(data.isSelected == 'y') {
-								vm.checkList.push(data.tableId);
-							};						
-						});
-						vm.checkAll = vm.indicatorsTable.length === vm.checkList.length && vm.checkList.length !== 0
-						/***将表格数据保存在vuex中***/
-						vm.$store.commit('SET_ECHARTS', handleObject.deepClone(vm.indicatorsTable));
-						if(vm.checkList.length != 0) {
-							vm.generateCharts();
-						};
-					}					
+			if(to.query.isEdit) {
+				service.getOldResult(to.query.quotaId).then(res => {
+					next(vm => {
+						if(res.responseData){
+							vm.oldResult = handleObject.deepClone(res.responseData);
+							if(vm.oldResult.qualityAnalysisFbzId != '') {
+								vm.filelist1 = vm.oldResult.qualityAnalysisFbzId.split(',').map(data => {
+									return {
+										url: `/getphotobyte?fileId=${data}`,
+									}
+								});
+							}
+							if(vm.oldResult.effectiveAnalysisFbzId != '') {
+								vm.filelist2 = vm.oldResult.effectiveAnalysisFbzId.split(',').map(data => {
+									return {
+										url: `/getphotobyte?fileId=${data}`,
+									}
+								});
+							}
+						}
+					})
 				})
-			})
+			}else {
+				next();
+			}		
 		},
 		methods: {
 			gotoStep(num) {
 				let query = this.$route.query.isEdit ? Object.assign({quotaId: this.$route.query.quotaId},{isEdit:this.$route.query.isEdit}) : {quotaId: this.$route.query.quotaId};
-				if(num == 4) {
-					NProgress.start();
-					// this.$service.saveOldCharts(this.$store.state.indicatorsTable).then(res => {						
-					// 	if(res.responseCode == 0) {
-					// 		this.$router.push({
-					// 			name: `entryStep${num}`,
-					// 			query,
-					// 		});
-					// 	}else {
-					// 		NProgress.done();
-					// 	}
-					// })
-					this.$router.push({
-						name: `entryStep${num}`,
-						query,
-					});
+				this.$router.push({
+					name: `entryStep${num}`,
+					query,
+				});
+			},
+			save() {
+				let params = {
+					effectiveAnalysis: this.oldResult.effectiveAnalysis,
+                    effectiveAnalysisFbzId: this.effectiveAnalysisFbzId.join(','),
+					improvementMeasure: this.oldResult.improvementMeasure,
+					qualityAnalysisFbzId: this.qualityAnalysisFbzId.join(','),
+					quotaId: this.$route.query.quotaId,
+					reasonAnalysis: this.oldResult.reasonAnalysis,
+				}
+				this.loading = true;
+				if(this.$route.query.isEdit) {
+					this.$service.saveOldEntryInfo(params).then(res => {
+						if(res.responseCode == '0') {
+							this.$message.success('保存成功！')
+							this.$router.push({
+								path: '/indicator/libs',
+							});
+						}
+						this.loading = false;
+					})
 				}else {
-					this.$router.push({
-						name: `entryStep${num}`,
-						query,
-					});
+					this.$service.saveNewEntryInfo(params).then(res => {
+						if(res.responseCode == '0') {
+							this.$message.success('保存成功！')
+							this.$router.push({
+								path: '/indicator/libs',
+							});
+						}
+						this.loading = false;
+					})
 				}				
 			},
-			//全选checkbox
-			handleCheckAllChange(event) {
-				this.checkList = event.target.checked ? this.tablesInfo.map(data => {
-					return data.tableId;
-				}) : [];			
+			//质量分析图片上传成功回掉函数
+			qualityAnalysisUploaded(res, file, fileList) {
+				if(res.responseCode == 0 && res.code == 0) {
+					this.$message.success(res.responseMessage);				
+				}else {
+					this.$message.error(res.responseMessage);
+					return;
+				}
+				fileList.map(data => {
+					if(!this.qualityAnalysisUid.includes(data.uid)) {
+						this.qualityAnalysisUid.push(data.uid);
+					}					
+				})
+				this.qualityAnalysisFbzId.push(res.results.fileId);	
+				this.qualityIsClicked = true;
 			},
-			//点击checkbox
-			handleCheckTableChange(value) {
-				this.checkAll = this.indicatorsTable.length === this.checkList.length && this.checkList.length !== 0
-			},
-			//生成图
-			generateCharts() {
-				/***将选中的表格数据转换成ECharts选项***/
-				this.ECharts = this.toBaseEChart(this.$store.state.indicatorsTable.filter(data => {
-						return this.checkList.includes(data.tableId);
-					})
-				);				
-				/***选中的表格isSelected标识置为y，没有选中的表格变为初始化状态***/
-				this.$store.state.indicatorsTable.map(data => {
-					if(this.checkList.includes(data.tableId)) {
-						data.isSelected = 'y';
-					}else {
-						data.isSelected = 'n';
-						data.imageType = ['generateTableThree', 'generateTableOne'].includes(data.tableModelFlag) ? '1' : '2';
-						data.flagList = [];
+			removeQualityAnalysisPic(file, fileList) {
+				if(this.qualityIsClicked) {
+					let index = this.qualityAnalysisUid.indexOf(file.uid);
+					this.qualityAnalysisFbzId.splice(index, 1);
+					this.qualityAnalysisUid.splice(index, 1);
+				}else {
+					for(let i = 0; i < this.qualityAnalysisFbzId.length; i ++) {
+						if(this.qualityAnalysisFbzId[i] == file.url.substr(-32)) {
+							this.qualityAnalysisFbzId.splice(i ,1);
+						}			
 					}
-				})				
+				}					
 			},
-			//重置
-			resetCharts() {
-				this.checkList = [];
-				this.$store.state.indicatorsTable.map(data => {
-					data.isSelected = 'n';
-					data.imageType = ['generateTableThree', 'generateTableOne'].includes(data.tableModelFlag) ? '1' : '2';
-					data.flagList = [];
-				});
-			},			
+			// beforeAvatarUpload(file) {
+			// 	const isPIC = file.type == 'image/jpeg' || file.type == 'image/png';
+			// 	const isLt1M = file.size/1024/1024 < 1;
+			// 	if(!isPIC) {
+			// 		this.$message.error('上传图片只能是jpg/jpeg/png格式！');
+			// 	}
+			// 	if(!isLt1M) {
+			// 		this.$message.error('上传图片大小不能超过1MB！');
+			// 	}
+			// 	return isPIC && isLt1M;
+			// },
+			//效果分析图片上传成功回掉函数
+			effectiveAnalysisUploaded(res, file, fileList) {
+				if(res.responseCode == 0 && res.code == 0) {
+					this.$message.success(res.responseMessage);					
+				}else {
+					this.$message.error(res.responseMessage);
+					return;
+				};
+			    fileList.map(data => {
+					if(!this.effectiveAnalysisUid.includes(data.uid)) {
+						this.effectiveAnalysisUid.push(data.uid);
+					}					
+				})
+				this.effectiveAnalysisFbzId.push(res.results.fileId);
+				this.effectIsClicked = true;	
+			},
+			removeEffectiveAnalysisPic(file) {
+				if(this.effectIsClicked) {
+					let index = this.qualityAnalysisUid.indexOf(file.uid);
+					this.effectiveAnalysisFbzId.splice(index, 1);
+					this.effectiveAnalysisUid.splice(index, 1);
+				}else {
+					for(let i = 0; i < this.effectiveAnalysisFbzId.length; i ++) {
+						if(this.effectiveAnalysisFbzId[i] == file.url.substr(-32)) {
+							this.effectiveAnalysisFbzId.splice(i ,1);
+						}			
+					}
+				}				
+			},
+		},
+		components: {
+			quillEditor,
 		}
 	}
 </script>
 
 <style rel="stylesheet/scss" lang="scss">
-	@import "../../assets/scss/position.scss";	
-	.entry-step-3 {
-	    // top: 65px;
-	    margin-bottom: 40px;	    
-	    display: flex;
-	    flex-direction: column;
-	    .check-group {
-		    width: 80%;
-			min-width: 710px;
-			margin: 12px auto;
-			.el-checkbox {
-				position: relative;
-				.tool-tip {
-					position: absolute;
-					opacity: 0;
-					visibility: hidden;
-					padding: 5px 10px;
-					border: 1px solid rgb(209, 229, 229);
-					top: -38px;
-					transition: all .2s;
-    				left: 13px;
-    				background-color: #fff;
-    				border-radius: 2px;
-    				box-shadow: 0 2px 4px 0 rgba(0,0,0,.12),0 0 6px 0 rgba(0,0,0,.04);
-    				z-index: 1000;
-    				.arrow {
-    					position: absolute;
-			    		bottom: -7px;
-    					left: 13px;
-			    		display: inline-block;
-			    		border-left: 6px solid transparent;
-			    		border-top: 6px solid rgb(209, 229, 229);
-			    		border-right: 6px solid transparent;
-			    		&:before {
-							content: '';
-							position: absolute;
-				    		left: -6px;
-    						top: -7px;
-				    		display: inline-block;
-				    		border-left: 6px solid transparent;
-				    		border-top: 6px solid #fff;
-				    		border-right: 6px solid transparent;
-						}
-    				}
-				}
-				&:hover {
-					.tool-tip {
-						visibility: visible;
-						opacity: 1;
-					}
-				}
-			}
-		}
-		.echarts-wrapper {
-			flex: 1;
-			overflow: overlay;
-			min-width: 1111px;
-		}		
-	}		
+    .entry-step-4 {
+	    top: 90px;
+	    bottom: 85px;
+	    .entry-step-inner {
+	    	position: absolute;
+		    top: 0;
+		    bottom: 0;
+		    overflow: auto;
+		    left: 0;
+		    right: 0;
+		    background: #fff;
+		    padding: 0 45px;
+		    padding-top: 30px;
+	    }
+	    .part {
+	    	margin-bottom: 25px;
+	    	.title {
+	    		font-size: 16px;
+			    margin-bottom: 15px;
+	    	}
+	    	.el-upload_tip {
+	    		margin-left: 15px;
+	    	}
+	    }
+	    .el-upload-list__item {
+	    	display: inline-block;
+		    width: 300px;
+		    margin-right: 20px;
+	    }
+	    .ql-container {
+	    	min-height: 150px;
+	    	.ql-editor {
+	    		min-height: 150px;
+    		    font-family: Microsoft YaHei!important;
+    		    font-size: 14px!important;
+	    	}
+	    }
+	    .el-upload-list--picture .el-upload-list__item-thumbnail	 {
+	    	width: 270px!important;
+	    }
+    }
 </style>

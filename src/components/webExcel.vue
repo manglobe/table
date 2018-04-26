@@ -50,7 +50,26 @@
         </div>
 
         <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
-        <div class="chart-wrap" v-for="(item, index) in chartOptionsSourse" :key="index">
+        <div 
+          class="chart-wrap" 
+          v-for="(item, index) in chartOptionsSourse" 
+          :key="index" 
+          :class="{ 'title-editing': item.isTitleEditing }"
+          @mouseenter = "()=>toggleChartsRange(item,true)"
+          @mouseleave = "()=>toggleChartsRange(item,false)"
+        >
+            <div class="chart-layer" @click="()=>quitChartEditor(index)"></div>
+            <div class="chart-title-editor" >
+              <input
+                type="text" 
+                :value="item.title" 
+                autofocus
+                @keydown="e=>titleEditorKeydownHandle(e,index)"
+                @input="chartTitleEditorCacheValue= $event.target.value"
+              />
+              <i class="el-icon-close" title="取消" @click="()=>quitChartEditor(index, false)"></i>
+              <i class="el-icon-check" title="保存" @click="e=>quitChartEditor(index, true)"></i>
+            </div>
             <Charts :optionsSourse ="item"
               :changeHandle ="v=>chartControllerHandle(v,index)"
               :chartsUnit = "excelCharts"
@@ -103,6 +122,7 @@ export default {
         label: excelCharts[ele].name
       })),
       drawStep: [],
+      chartStep: [],
       funcStore: {},
       funcCache: "",
       visible: false,
@@ -119,6 +139,7 @@ export default {
       firstSelectedCol: "",
       lastSelectedRow: "",
       lastSelectedCol: "",
+      chartTitleEditorCacheValue: "",
       hotSettings: {
         data:
           typeof self.propTable.tableData === "string"
@@ -146,7 +167,22 @@ export default {
         },
         className: "htCenter htMiddle",
         afterSelectionEnd(r,c,r2,c2){
-          self.hot1[Symbol.for('lastSelected')] = self.hot1.getSelected()
+          // const getArea = (coor) =>{
+          //     return (coor[2]-coor[0]+1)*(coor[3]-coor[1]+1)
+          // }
+          // const mix = (d1,d2)=>{
+          //   const d3 = d1.map((ele,index)=>{
+          //     if(index<2){
+          //         return Math.min(ele,d2[index])
+          //     }
+          //     return Math.max(ele,d2[index])
+          //   })
+          //   return d3
+          // }
+
+          self.hot1[Symbol.for('lastSelected')] = self.hot1.getSelected();
+          // let mixed= self.hot1[Symbol.for('lastSelected')].reduce(mix)
+          // self.hot1[Symbol.for('lastSelected')] = 
           if(self.funcStore[`${r}-${c}`]&& /^=/.test(self.funcStore[`${r}-${c}`])){
             self.$refs.funcInput.value = self.funcStore[`${r}-${c}`]
           }else{
@@ -470,25 +506,35 @@ export default {
   methods: {
     chartSelect(v, i) {
       const selectRange = this.hot1[Symbol.for('lastSelected')]
-      let dataRange = selectRange.map(ele=>this.hot1.getData(...ele))
+      let dataRange = selectRange.map(ele=>this.hot1.getData(...ele));
+      console.log(dataRange)
+
       let data = dataRange[0].map((ele, index)=>{
         let newArr = [];
         for (const iterator of dataRange) {
-          console.log(newArr, iterator[index])
+          // console.log(newArr, iterator[index])
           newArr = [...newArr, ...iterator[index]]
         }
-        return newArr
-      })
+          return newArr
+      });
       this.chartOptionsSourse.push({
         data,
-        type: v
+        type: v,
+        title:'图表标题',
+        transpose: false,
+        isTitleEditing: false,
+        range: selectRange
       })
 
     },
     chartSelectFull(v) {
        this.chartOptionsSourse.push({
         data: JSON.parse(this.getExcelData().tableData),
-        type: v
+        type: v,
+        title:'图表标题',
+        transpose: false,
+        isTitleEditing: false,
+        range:'full'
       })
 
     },
@@ -500,8 +546,73 @@ export default {
             ...this.chartOptionsSourse[index],
             ...{transpose:!this.chartOptionsSourse[index].transpose}
           } )
+
         break
+        case 'editorTitle':
+          this.chartOptionsSourse.splice(index,1,{
+            ...this.chartOptionsSourse[index],
+            ...{isTitleEditing:true}
+          } )
+
+        break
+
       }
+    },
+    quitChartEditor(index, save){
+      this.chartOptionsSourse.splice(index,1,{
+        ...this.chartOptionsSourse[index],
+        ...{isTitleEditing:false},
+        ...save?{title:this.chartTitleEditorCacheValue}:{}
+      } )
+    },
+    titleEditorKeydownHandle(e,index){
+      if(e.keyCode===13){
+        this.quitChartEditor(index, true)
+      }
+      if(e.keyCode===27){
+        this.quitChartEditor(index)
+      }
+    },
+    toggleChartsRange(item,show){
+      if(show){
+        if(item.range==='full'){
+          this.addChartStep('full', 'chartStep')
+        }else{
+          item.range.forEach(ele=>{
+            this.addChartStep(...ele,'chartStep')
+          })
+        }
+      }else{
+        this.chartStep=[]
+      }
+        this.drawCanvas()
+    },
+    addChartStep(r, c, r2, c2,...type) {
+      const _this =this 
+      if(r === 'full'){
+        _this[c].push({
+            render(ctx, color) {
+          ctx.strokeStyle = color;
+          ctx.strokeRect(
+            _this.hotSettings.rowHeaderWidth,
+            _this.hotSettings.columnHeaderHeight,
+            _this.$refs.excel.clientWidth-_this.hotSettings.rowHeaderWidth,
+            _this.$refs.excel.clientHeight-_this.hotSettings.columnHeaderHeight -4 
+          );
+        }
+        })
+      }
+      this.chartStep.push({
+        render(ctx, color) {
+          ctx.strokeStyle = color;
+          ctx.strokeRect(
+            _this.hotSettings.rowHeaderWidth + c *  _this.hotSettings.colWidths,
+            _this.hotSettings.columnHeaderHeight + r * _this.hotSettings.rowHeights,
+            (c2 - c + 1) * _this.hotSettings.colWidths ,
+            (r2 - r + 1) * _this.hotSettings.rowHeights
+          );
+        }
+      });
     },
     // function
     funcSelect(v) {
@@ -614,6 +725,9 @@ export default {
       let ctx = Canvas.getContext("2d");
       ctx.clearRect(0, 0, Canvas.width, Canvas.height);
       this.drawStep.forEach((ele, index) => {
+        ele.render(ctx, colorArr[index % 7]);
+      });
+      this.chartStep.forEach((ele, index) => {
         ele.render(ctx, colorArr[index % 7]);
       });
     },
@@ -1519,8 +1633,79 @@ td {
   width: calc(50% - 10px);
   margin-right: 20px;
   box-sizing: border-box;
+  position: relative;
   &:nth-child(odd){
     margin-right: 0;
+  }
+  .chart-layer{
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 2;
+    display: none;
+  }
+  .chart-title-editor{
+    position: absolute;
+    opacity: 0;
+    top: 10px;
+    width: 60%;
+    left: 0;
+    right: 0;
+    display: block;
+    margin: auto;
+    z-index: 3;
+    transform: translate(0,-80%);
+    display: flex;
+    align-items: center;
+    input{
+      -webkit-appearance: none;
+      background-color: rgb(255, 255, 255);
+      background-image: none;
+      box-sizing: border-box;
+      color: rgb(31, 45, 61);
+      display: inline-block;
+      font-size: inherit;
+      height: 36px;
+      line-height: 1;
+      width: 100%;
+      border-radius: 4px;
+      border: 1px solid rgb(191, 203, 217);
+      border-image: initial;
+      outline: none;
+      padding: 3px 10px;
+      transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+      &:focus{
+        outline: none;
+        border-color: rgb(32, 160, 255);
+      }
+    }
+    .el-icon-close, .el-icon-check{
+      width: 36px;
+      height: 36px;
+      display: inline-block;
+      margin: 0 5px;
+      line-height: 36px;
+      cursor: pointer;
+      color: #06aea6;
+    }
+    .el-icon-close{
+      color: #aaa;
+    }
+ 
+  }
+  &.title-editing{
+    .chart-layer{
+      display: block;
+    }
+    .chart-title-editor{
+      opacity: 1;
+      transform: translate(0,0);
+      transition: 0.6s;
+      
+    }
   }
 }
 </style>
