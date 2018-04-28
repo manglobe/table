@@ -11,38 +11,43 @@
             </div>
             <div class="body">
                 <div class="paragraph">
-                    <span>1&nbsp&nbsp指标名称：</span>
+                    <span>1&nbsp;&nbsp;指标名称：</span>
                     <div class="content1">{{indicatorsInfo.quotaName || '暂无'}}</div>  
                 </div>
                 <div class="paragraph">
-                    <span>2&nbsp&nbsp指标类型：</span>
+                    <span>2&nbsp;&nbsp;指标类型：</span>
                     <div class="content1">{{indicatorsInfo.quotaTypeName || '暂无'}}</div>  
                 </div>
                 <div class="paragraph">
                     <div>
-                        <span>3&nbsp&nbsp指标定义：</span>
+                        <span>3&nbsp;&nbsp;指标定义：</span>
                         <div class="content1">
                             <div v-for="definition in indicatorsInfo.quotaDefinitions">{{definition.quotaDefinitionName || '暂无'}}</div> 
                         </div>
                     </div>
                     <div class="nav">
-                        <span>3.1&nbsp&nbsp分子：</span>
+                        <span>3.1&nbsp;&nbsp;分子：</span>
                         <div class="content1">{{indicatorsInfo.molecular || '暂无'}}</div>
                     </div>
                     <div class="nav">
-                        <span>3.2&nbsp&nbsp分母：</span>
+                        <span>3.2&nbsp;&nbsp;分母：</span>
                         <div class="content1">{{indicatorsInfo.denominator || '暂无'}}</div>
                     </div> 
                     <div class="nav">
-                        <span>3.3&nbsp&nbsp公式：</span>
+                        <span>3.3&nbsp;&nbsp;公式：</span>
                         <div class="content1">{{formula}}</div>
                     </div>   
                 </div>
                 <div class="paragraph">
-                    <span>4&nbsp&nbsp检测项目分析报告：</span>
-                    <div class="figure-wrapper" 
+                    <span>4&nbsp;&nbsp;检测项目分析报告：</span>
+                    <div 
                       v-for='(indicatorTable, index) in indicatorsTable'>
-                        <div class="shen-table pdf-pagination">
+                        <web-excel 
+                        :editorAble="false"
+                        :key="index"
+                        :prop-table="indicatorTable"
+                        :id="index"></web-excel>   
+                        <!-- <div class="shen-table pdf-pagination">
                             <div class="table-title">{{indicatorTable.tableName}}</div>
                             <div class="table-body-wrapper">                              
                                 <table class="table-body" cellspacing="0" cellpadding="0">
@@ -59,36 +64,37 @@
                                 </table>
                             </div>
                         </div>
-                        <div  v-if="indicatorTable.isSelected == 'y'">
-                            <div class="echarts pdf-pagination" v-if="indicatorTable.imageType != '0'">
-                                <IEcharts :option="charts[index]"></IEcharts>
-                            </div>
-                            <div
+                        <div > -->
+                        <!-- <div  v-if="indicatorTable.isSelected == 'y'"> -->
+                            <!-- <div class="echarts pdf-pagination" v-if="indicatorTable.imageType != '0'"> -->
+                                <!-- <EchartsBox :option="charts[index]"></EchartsBox> -->
+                            <!-- </div> -->
+                            <!-- <div
                               class="echarts pdf-pagination" 
-                              v-for='(spreadChart, index) in spreadCharts[index]'
+                              v-for='(chartOption, index) in indicatorTable.imgData?JSON.parse(indicatorTable.imgData):[]'
                               :key='index'>
-                                <IEcharts :option="spreadChart"></IEcharts>
+                                <EchartsBox :optionsSourse="chartOption"></EchartsBox>
                             </div>
-                        </div>                            
+                        </div>                             -->
                     </div>                   
                 </div>
                 <div class="paragraph">
-                    <span>5&nbsp&nbsp质量分析：</span>
+                    <span>5&nbsp;&nbsp;质量分析：</span>
                     <span v-if="qualityPics.length == 0">暂无</span>
                     <div v-else class="content1">
                         <img :src="qualityPic" v-for="qualityPic in qualityPics" />
                     </div>                 
                 </div>
                 <div class="paragraph">
-                    <span>6&nbsp&nbsp原因分析：</span>
+                    <span>6&nbsp;&nbsp;原因分析：</span>
                     <span class="editors" v-html="reasonDOM"></span>
                 </div>
                 <div class="paragraph">
-                    <span>7&nbsp&nbsp改进措施：</span>
+                    <span>7&nbsp;&nbsp;改进措施：</span>
                     <span class="editors" v-html="improveDOM"></span>
                 </div>
                 <div class="paragraph">
-                    <span>8&nbsp&nbsp效果分析：</span>
+                    <span>8&nbsp;&nbsp;效果分析：</span>
                     <div class="content1" v-if="effectivePics.length == 0 && effectDOM == ''">暂无</div>                  
                     <div class="content1">
                         <img :src="effectivePic" v-for="effectivePic in effectivePics" />
@@ -109,10 +115,12 @@
     // import jsPDF from '@/assets/libs/jspdf.min.js';
     import IEcharts from 'vue-echarts-v3/src/lite.js';
     import service from '@/service/service';
+    import EchartsBox from '@/components/echartsBox';
+    import webExcel from "@/components/webExcel";
 
     export default {
         components: {
-            IEcharts
+            IEcharts, EchartsBox,webExcel
         },
         data() {          
             return {
@@ -145,30 +153,31 @@
                     vm.reasonDOM = vm.indicatorsResult.reasonAnalysis || '暂无';
                     vm.improveDOM = vm.indicatorsResult.improvementMeasure || '暂无';
                     vm.effectDOM = vm.indicatorsResult.effectiveAnalysis || '暂无文字说明';
-                    if(vm.indicatorsResult){
-                        let { qualityAnalysisFbzId, effectiveAnalysisFbzId } = vm.indicatorsResult
-                        vm.loadPics(qualityAnalysisFbzId, vm.qualityPics);
-                        vm.loadPics(effectiveAnalysisFbzId, vm.effectivePics);
-                    };
-                    vm.charts = vm.toBaseEChart(vm.indicatorsTable);
-                    vm.charts.map(data => {
-                        vm.spreadCharts.push(data.spreadType.map(item => {
-                            return vm.toSpreadEChart(data, item);
-                        }))                       
-                    });
+                    // if(vm.indicatorsResult){
+                    //     let { qualityAnalysisFbzId, effectiveAnalysisFbzId } = vm.indicatorsResult
+                    //     vm.loadPics(qualityAnalysisFbzId, vm.qualityPics);
+                    //     vm.loadPics(effectiveAnalysisFbzId, vm.effectivePics);
+                    // };
+                    console.log(vm)
+                    // vm.charts = vm.toBaseEChart(vm.indicatorsTable);
+                    // vm.charts.map(data => {
+                    //     vm.spreadCharts.push(data.spreadType.map(item => {
+                    //         return vm.toSpreadEChart(data, item);
+                    //     }))                       
+                    // });
                 })
             })
         },
         methods: {
-            loadPics(str, pics) {
-                if(!str){
-                    return;
-                };
-                let arr = str.split(',');
-                for(let id of arr) {
-                    pics.push(`/getphotobyte?fileId=${id}`);
-                }               
-            },           
+            // loadPics(str, pics) {
+            //     if(!str){
+            //         return;
+            //     };
+            //     let arr = str.split(',');
+            //     for(let id of arr) {
+            //         pics.push(`/getphotobyte?fileId=${id}`);
+            //     }               
+            // },           
             // htmlToCanvas() {
             //     // let a = document.getElementsByTagName('canvas')[0];
             //     // let b = document.getElementsByTagName('canvas')[1];

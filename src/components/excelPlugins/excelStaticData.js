@@ -34,24 +34,24 @@ export const excelFunctions = {
       return newStr
     }
   },
-  SUBTRACTION: {
-    name: '求差',
-    func(valueStr) {
-      let newStr = valueStr.replace(/subtraction/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
-        return `(${disposeRange(match).join('+')})`
-      }).replace(/,/g, '-');
-      return newStr
-    }
-  },
-  QUOTIENT: {
-    name: '求商',
-    func(valueStr) {
-      let newStr = valueStr.replace(/quotient/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
-        return `(${disposeRange(match).join('+')})`
-      }).replace(/,/g, '/');
-      return newStr
-    }
-  },
+  // SUBTRACTION: {
+  //   name: '求差',
+  //   func(valueStr) {
+  //     let newStr = valueStr.replace(/subtraction/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
+  //       return `(${disposeRange(match).join('+')})`
+  //     }).replace(/,/g, '-');
+  //     return newStr
+  //   }
+  // },
+  // QUOTIENT: {
+  //   name: '求商',
+  //   func(valueStr) {
+  //     let newStr = valueStr.replace(/quotient/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
+  //       return `(${disposeRange(match).join('+')})`
+  //     }).replace(/,/g, '/');
+  //     return newStr
+  //   }
+  // },
   AVERAGE: {
     name: '求平均数',
     func(valueStr) {
@@ -171,7 +171,7 @@ const chartDataFilter = dataSourse => {
 }
 import echarts from 'echarts';
 export const excelCharts = {
-  sum: {
+  line: {
     name: '折线图',
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
@@ -183,7 +183,6 @@ export const excelCharts = {
           // subtext: ' '
         },
         legend: {
-          type: 'scroll',
           bottom: 10,
           data: filtedData.column,
           formatter: function (name) {
@@ -196,22 +195,6 @@ export const excelCharts = {
         tooltip: {
           trigger: 'axis'
         },
-        // grid: {
-        //     left: '3%',
-        //     right: '4%',
-        //     bottom: '3%',
-        //     containLabel: true
-        // },
-        // toolbox: {
-        //     show : true,
-        //     feature : {
-        //         mark : {show: true},
-        //         dataView : {show: true, readOnly: false},
-        //         magicType : {show: true, type: ['line', 'bar', 'stack', 'tiled']},
-        //         restore : {show: true},
-        //         saveAsImage : {show: true}
-        //     }
-        // },
         xAxis: {
           type: 'category',
           boundaryGap: false,
@@ -228,7 +211,7 @@ export const excelCharts = {
       }
     }
   },
-  reduce: {
+  bar: {
     name: '柱状图（簇形）',
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
@@ -242,21 +225,17 @@ export const excelCharts = {
         },
         legend: {
           bottom: 10,
-          data: filtedData.column
+          data: filtedData.column,
+          formatter: function (name) {
+            return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
+          },
+          tooltip: {
+            show: true
+          },
         },
         tooltip: {
           trigger: 'axis'
         },
-        // toolbox: {
-        //     show : true,
-        //     feature : {
-        //         mark : {show: true},
-        //         dataView : {show: true, readOnly: false},
-        //         magicType : {show: true, type: ['line', 'bar']},
-        //         restore : {show: true},
-        //         saveAsImage : {show: true}
-        //     }
-        // },
         calculable: true,
         xAxis: [{
           type: 'category',
@@ -273,10 +252,11 @@ export const excelCharts = {
       };
     }
   },
-  quotient: {
+  pie: {
     name: '饼图',
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
+      console.log(dataSourse)
       return {
         title: {
           top: 10,
@@ -310,16 +290,86 @@ export const excelCharts = {
       };
     }
   },
-  average: {
+  pareto: {
     name: '柏拉图',
-    func() {
-      console.log(arguments)
+    func(dataSourse) {
+      let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
+
+      const sumArr =  transpose(filtedData.data).map(ele=>eval(ele.join('+')));
+      const sum = eval(sumArr.join('+'));
+      const proportion = sumArr.map(ele=>ele/sum)
+
+      const sortArr = sumArr.map((ele, index)=>({
+        name: filtedData.row[index],
+        value: ele,
+        proportion: proportion[index],
+      }))
+      sortArr.sort((p,n)=>p.value<n.value)
+      let sortedProportion = sortArr.map(ele=>ele.proportion)
+      sortedProportion.reduce((p,n,i)=>{sortedProportion[i]=p+n; return p+n})
+      return {
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+              type: 'cross',
+              crossStyle: {
+                  color: '#999'
+              }
+          }
+        },
+        legend: {
+            // data:['蒸发量','降水量','平均温度']
+            data: sortArr.map(ele=>ele.name),
+        },
+        xAxis: [
+            {
+                type: 'category',
+                data: filtedData.row,
+                axisPointer: {
+                  type: 'shadow'
+                }
+            }
+        ],
+        yAxis: [
+            {
+                type: 'value',
+            },
+            {
+                type: 'value',
+                name: '占比',
+                min: 0,
+                max: 1,
+                axisLabel: {
+                    formatter: value =>`${value*100} %`
+                }
+            }
+        ],
+        series: [
+          {
+            type:"bar",
+            data: sortArr.map(ele=>ele.value),
+            barCategoryGap: 0,
+            itemStyle:{
+              borderColor: 'rgba(0,0,0,0.3)',
+              borderWidth: 1,
+            }
+          },
+          {
+            type:"line",
+            data: sortedProportion,
+            yAxisIndex: 1,
+            tooltip:{
+              formatter: (params) =>{return `${(params.data*100).toFixed(2)} %`}
+            }
+          },
+        ]
+      }
     }
   },
-  diy: {
-    name: '自定义',
-    func() {
-      console.log(arguments)
-    }
-  },
+  // diy: {
+  //   name: '自定义',
+  //   func() {
+  //     console.log(arguments)
+  //   }
+  // },
 }

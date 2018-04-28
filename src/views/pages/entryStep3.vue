@@ -19,69 +19,47 @@
 	    	  @click="save">保 存</el-button>
 	    </div>
 	    <div class="entry-step entry-step-4">
+			<el-upload
+				action='/api/file/upload'
+				:headers='headers'
+				:before-upload='beforeUpload'
+				:on-success='uploadedCallback'
+				>
+				<el-button ref='imgUpload' type="primary">从文件中导入图片</el-button>
+			</el-upload>
 	    	<div 
 	    	  v-loading="loading" 
 	    	  element-loading-text="拼命保存中"
 	    	  style='width: 100%;height: 100%;'></div>
 	        <div class="entry-step-inner">
 		    	<div class="part">
-		    		<div class="title">质量分析：</div>
-		    		<!-- <el-upload
-		    		  action='/file/upload'
-		    		  :headers='headers'
-		    		  :before-upload='beforeAvatarUpload'
-		    		  :on-success='qualityAnalysisUploaded'
-		    		  :on-remove="removeQualityAnalysisPic"
-		    		  :file-list="filelist1"
-		    		  list-type='picture'
-		    		  multiple>
-		    			<el-button type="primary">从文件中导入图片</el-button>
-		    			<span slot='tip' class='el-upload_tip'>只支持jpg/png格式，最张不超过1MB，最多上传10张</span>
-		    		</el-upload> -->
-		    		<el-upload
-		    		  action='/api/file/upload'
-		    		  :headers='headers'
-		    		  :before-upload='beforeAvatarUpload'
-		    		  :on-success='qualityAnalysisUploaded'
-					  :on-remove="removeQualityAnalysisPic"
-		    		  :file-list="filelist1"
-		    		  list-type='picture'
-		    		  multiple>
-					  	<el-button ref='imgUpload' type="primary">从文件中导入图片</el-button>
-
-		    		</el-upload>
+		    		<div class="title">结果分析</div>
+					<quill-editor	
+						ref='editor' 
+						v-model='oldResult.resultAnalysis'
+						:options="editorOption"></quill-editor>
 		    	</div>
 		    	<div class="part">
 		    		<div class="title">原因分析：</div>
 		    		<quill-editor	
-						ref='editor'  		 
+						ref='editor2'  		 
 						v-model='oldResult.reasonAnalysis'
 						:options="editorOption"></quill-editor>
 		    	</div>
 		    	<div class="part">
 		    		<div class="title">改进措施：</div>
-		    		<quill-editor		    		 
-		    		 v-model='oldResult.improvementMeasure'
-		    		 :options="editorOption"></quill-editor>
+		    		<quill-editor	
+						ref='editor3'  		 	    		 
+		    		 	v-model='oldResult.improvementMeasure'
+		    		 	:options="editorOption"></quill-editor>
 		    	</div>
 		    	<div class="part">
 		    		<div class="title">效果分析：</div>
-		    		<!-- <el-upload
-		    		  action='/file/upload'
-		    		  :headers='headers'
-		    		  :before-upload='beforeAvatarUpload'
-		    		  :on-success='effectiveAnalysisUploaded'
-		    		  :on-remove="removeEffectiveAnalysisPic"
-		    		  :file-list="filelist2"
-		    		  list-type='picture'
-		    		  multiple>
-		    			<el-button type="primary">从文件中导入图片</el-button>
-		    			<span slot='tip' class='el-upload_tip'>只支持jpg/png格式，最张不超过1MB，最多上传10张</span>
-		    		</el-upload> -->
 		    		<quill-editor
-		    		 style="margin-top: 20px;"		    		 
-		    		 v-model='oldResult.effectiveAnalysis'
-		    		 :options="editorOption"></quill-editor>
+						style="margin-top: 20px;"
+						ref='editor4'  		 
+						v-model='oldResult.effectiveAnalysis'
+						:options="editorOption"></quill-editor>
 		    	</div>
 	    	</div>
 	    </div>
@@ -95,6 +73,10 @@
     import def, { quillEditor } from 'vue-quill-editor';
     import service from '@/service/service';
 	import handleObject from '@/util/handleObject';
+	// https://github.com/quilljs/quill/issues/1857 allow image to show every type urls
+	// let Image = def.Quill.import('formats/image');
+	// Image.match = function(url) { /* ... */ };
+	// Image.sanitize = function(url) {return url }
 
 	export default {
 		data() {
@@ -106,15 +88,15 @@
 				loading: false,
 				qualityAnalysisUid: [],
 				effectiveAnalysisUid: [],
-				qualityIsClicked: false,
 				effectIsClicked: false,
 				filelist1: [],
 				filelist2: [],
 				oldResult: {
+					resultAnalysis:'',
 					effectiveAnalysis: '',
-					effectiveAnalysisFbzId: '',
+					// effectiveAnalysisFbzId: '',
 					improvementMeasure: '',
-					qualityAnalysisFbzId: '',
+					// qualityAnalysisFbzId: '',
 					reasonAnalysis: '',
 				},
 				editorOption: {
@@ -142,39 +124,40 @@
 				},
 				headers: {
 					'Accept': 'application/json, text/plain, */*',
-					// 'X-XSRF-TOKEN': 'f2f4ccc2-04bd-48c4-b575-2e63bab47dea',
-					'X-XSRF-TOKEN': this.$store.state.csrf['X-XSRF-TOKEN'],
+					'X-XSRF-TOKEN': 'c3a26c4a-6493-443e-a61e-48e92d68d077',
+					// 'X-XSRF-TOKEN': this.$store.state.csrf['X-XSRF-TOKEN'],
 				},							
 			}	
 		},
 		computed: {
-			qualityAnalysisFbzId() {
-				return this.oldResult.qualityAnalysisFbzId ? this.oldResult.qualityAnalysisFbzId.split(',') : [];
-			},
-			effectiveAnalysisFbzId() {
-				return this.oldResult.effectiveAnalysisFbzId ? this.oldResult.effectiveAnalysisFbzId.split(',') : [];
-			},
+			// qualityAnalysisFbzId() {
+			// 	return this.oldResult.qualityAnalysisFbzId ? this.oldResult.qualityAnalysisFbzId.split(',') : [];
+			// },
+			// effectiveAnalysisFbzId() {
+			// 	return this.oldResult.effectiveAnalysisFbzId ? this.oldResult.effectiveAnalysisFbzId.split(',') : [];
+			// },
 		},
 		beforeRouteEnter(to, from, next) {
+			console.log(to)
 			if(to.query.isEdit) {
 				service.getOldResult(to.query.quotaId).then(res => {
 					next(vm => {
 						if(res.responseData){
 							vm.oldResult = handleObject.deepClone(res.responseData);
-							if(vm.oldResult.qualityAnalysisFbzId != '') {
-								vm.filelist1 = vm.oldResult.qualityAnalysisFbzId.split(',').map(data => {
-									return {
-										url: `/getphotobyte?fileId=${data}`,
-									}
-								});
-							}
-							if(vm.oldResult.effectiveAnalysisFbzId != '') {
-								vm.filelist2 = vm.oldResult.effectiveAnalysisFbzId.split(',').map(data => {
-									return {
-										url: `/getphotobyte?fileId=${data}`,
-									}
-								});
-							}
+							// if(vm.oldResult.qualityAnalysisFbzId != '') {
+							// 	vm.filelist1 = vm.oldResult.qualityAnalysisFbzId.split(',').map(data => {
+							// 		return {
+							// 			url: `/getphotobyte?fileId=${data}`,
+							// 		}
+							// 	});
+							// }
+							// if(vm.oldResult.effectiveAnalysisFbzId != '') {
+							// 	vm.filelist2 = vm.oldResult.effectiveAnalysisFbzId.split(',').map(data => {
+							// 		return {
+							// 			url: `/getphotobyte?fileId=${data}`,
+							// 		}
+							// 	});
+							// }
 						}
 					})
 				})
@@ -192,10 +175,11 @@
 			},
 			save() {
 				let params = {
+					resultAnalysis: this.oldResult.resultAnalysis,
 					effectiveAnalysis: this.oldResult.effectiveAnalysis,
-                    effectiveAnalysisFbzId: this.effectiveAnalysisFbzId.join(','),
+                    // effectiveAnalysisFbzId: this.effectiveAnalysisFbzId.join(','),
 					improvementMeasure: this.oldResult.improvementMeasure,
-					qualityAnalysisFbzId: this.qualityAnalysisFbzId.join(','),
+					// qualityAnalysisFbzId: this.qualityAnalysisFbzId.join(','),
 					quotaId: this.$route.query.quotaId,
 					reasonAnalysis: this.oldResult.reasonAnalysis,
 				}
@@ -222,74 +206,32 @@
 					})
 				}				
 			},
-			//质量分析图片上传成功回掉函数
-			qualityAnalysisUploaded(res, file, fileList) {
+			//图片上传成功回掉函数
+			uploadedCallback(res, file, fileList) {
 				if(res.responseCode == 0 && res.code == 0) {
 					this.$message.success(res.responseMessage);				
 				}else {
 					this.$message.error(res.responseMessage);
 					return;
 				}
-				fileList.map(data => {
-					if(!this.qualityAnalysisUid.includes(data.uid)) {
-						this.qualityAnalysisUid.push(data.uid);
-					}					
-				})
-				this.qualityAnalysisFbzId.push(res.results.fileId);	
-				this.qualityIsClicked = true;
+				this.addImgRange = this.$refs[this.cacheEditorRefName].quill.getSelection()
+				console.log(this.$refs)
+				console.log(this.cacheEditorRefName)
+				this.$refs[this.cacheEditorRefName].quill.insertEmbed(this.addImgRange != null?this.addImgRange.index:0, 'image', `${process.env.NODE_ENV === 'production' ? '' : '/api'}/getphotobyte?fileId=${res.results.fileId}`)
+
+				this.$refs[this.cacheEditorRefName].quill.setSelection(this.addImgRange != null?this.addImgRange.index+1:1,1)
 			},
-			removeQualityAnalysisPic(file, fileList) {
-				if(this.qualityIsClicked) {
-					let index = this.qualityAnalysisUid.indexOf(file.uid);
-					this.qualityAnalysisFbzId.splice(index, 1);
-					this.qualityAnalysisUid.splice(index, 1);
-				}else {
-					for(let i = 0; i < this.qualityAnalysisFbzId.length; i ++) {
-						if(this.qualityAnalysisFbzId[i] == file.url.substr(-32)) {
-							this.qualityAnalysisFbzId.splice(i ,1);
-						}			
-					}
-				}					
-			},
-			beforeAvatarUpload(file) {
+			beforeUpload(file) {
 				const isPIC = file.type == 'image/jpeg' || file.type == 'image/png';
-				const isLt1M = file.size/1024/1024 < 1;
+				// const isLt1M = file.size/1024/1024 < 1;
 				if(!isPIC) {
 					this.$message.error('上传图片只能是jpg/jpeg/png格式！');
 				}
-				if(!isLt1M) {
-					this.$message.error('上传图片大小不能超过1MB！');
-				}
-				return isPIC && isLt1M;
-			},
-			//效果分析图片上传成功回掉函数
-			effectiveAnalysisUploaded(res, file, fileList) {
-				if(res.responseCode == 0 && res.code == 0) {
-					this.$message.success(res.responseMessage);					
-				}else {
-					this.$message.error(res.responseMessage);
-					return;
-				};
-			    fileList.map(data => {
-					if(!this.effectiveAnalysisUid.includes(data.uid)) {
-						this.effectiveAnalysisUid.push(data.uid);
-					}					
-				})
-				this.effectiveAnalysisFbzId.push(res.results.fileId);
-				this.effectIsClicked = true;	
-			},
-			removeEffectiveAnalysisPic(file) {
-				if(this.effectIsClicked) {
-					let index = this.qualityAnalysisUid.indexOf(file.uid);
-					this.effectiveAnalysisFbzId.splice(index, 1);
-					this.effectiveAnalysisUid.splice(index, 1);
-				}else {
-					for(let i = 0; i < this.effectiveAnalysisFbzId.length; i ++) {
-						if(this.effectiveAnalysisFbzId[i] == file.url.substr(-32)) {
-							this.effectiveAnalysisFbzId.splice(i ,1);
-						}			
-					}
-				}				
+				// if(!isLt1M) {
+				// 	this.$message.error('上传图片大小不能超过1MB！');
+				// }
+				// return isPIC && isLt1M;
+				return isPIC;
 			},
 		},
 		components: {
@@ -297,15 +239,19 @@
 		},
 		mounted(){
 			const _this = this
-			const imgHandler = async function(image) {
-				_this.addImgRange = _this.$refs.editor.quill.getSelection()
+			const imgHandler = ref=> async function(image) {
+				_this.addImgRange = _this.$refs[ref].quill.getSelection()
+				_this.cacheEditorRefName = ref
 				if (image) {
 					const fileInput = _this.$refs.imgUpload 
 					fileInput.$el.click()
 				}
 			}
- 
-			_this.$refs.editor.quill.getModule('toolbar').addHandler('image', imgHandler)
+			console.log(_this.$refs)
+			_this.$refs.editor.quill.getModule('toolbar').addHandler('image', imgHandler('editor'))
+			_this.$refs.editor2.quill.getModule('toolbar').addHandler('image', imgHandler('editor2'))
+			_this.$refs.editor3.quill.getModule('toolbar').addHandler('image', imgHandler('editor3'))
+			_this.$refs.editor4.quill.getModule('toolbar').addHandler('image', imgHandler('editor4'))
 		}
 	}
 </script>

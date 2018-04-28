@@ -1,6 +1,6 @@
 <template>
   <div class="charts-box" :data-option = "options" >
-    <div class= "charts-controller">
+    <div class= "charts-controller" v-if="readonly">
       <span class="controller-icons">
         <i></i>
         <i></i>
@@ -27,6 +27,9 @@ export default {
       } ,
       chartsUnit:{
           type: Object,
+      } ,
+      readonly:{
+          type: Boolean,
       }
   },
   data(){

@@ -1,8 +1,8 @@
 <template>
-    <section class="excel-wrap" ref="excelWrap" v-if="!isDelete">
+    <section :class="{'excel-wrap': editorAble, 'excel-display': !editorAble}" ref="excelWrap" v-if="!isDelete">
       <div class="flex-wrap">
         <!-- <el-input class="table-name" v-model='tableName'></el-input> -->
-        <div class="btn-handle-2">
+        <div v-if="editorAble" class="btn-handle-2">
           <!-- <el-button 
             v-if="isEdit"
             type="text" 
@@ -50,7 +50,8 @@
         </div>
 
         <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
-        <div 
+        <div class="charts">
+          <div 
           class="chart-wrap" 
           v-for="(item, index) in chartOptionsSourse" 
           :key="index" 
@@ -70,11 +71,14 @@
               <i class="el-icon-close" title="取消" @click="()=>quitChartEditor(index, false)"></i>
               <i class="el-icon-check" title="保存" @click="e=>quitChartEditor(index, true)"></i>
             </div>
-            <Charts :optionsSourse ="item"
+            <Charts 
+              :readonly="editorAble"
+              :optionsSourse ="item"
               :changeHandle ="v=>chartControllerHandle(v,index)"
               :chartsUnit = "excelCharts"
             >
             </Charts>
+        </div>
         </div>
         <!-- <div class="chart-wrap">
             <Charts :options="chartOptionFull" >
@@ -106,6 +110,10 @@ export default {
     },
     propTable: {
       type: Object
+    },
+    editorAble: {
+      type: Boolean,
+      default: true
     }
   },
   data() {
@@ -122,6 +130,7 @@ export default {
         label: excelCharts[ele].name
       })),
       titleEditingIndex:'',
+      maxColsNumber:16,
       drawStep: [],
       chartStep: [],
       funcStore: {},
@@ -141,7 +150,9 @@ export default {
       lastSelectedRow: "",
       lastSelectedCol: "",
       chartTitleEditorCacheValue: "",
+      selectedRow:[],
       hotSettings: {
+        readOnly: !this.editorAble,
         data:
           typeof self.propTable.tableData === "string"
             ? JSON.parse(self.propTable.tableData)
@@ -153,11 +164,12 @@ export default {
         minCols: 1,
         minRows: 1,
         maxCols: 15,
-        colWidths: 120,
-        rowHeaderWidth: 52,
-        rowHeights: 40,
-        columnHeaderHeight: 40,
+        colWidths: this.editorAble?120:64,
+        rowHeaderWidth: this.editorAble?52:40,
+        rowHeights: this.editorAble?40:30,
+        columnHeaderHeight: this.editorAble?40:30,
         autoRowSize: {syncLimit: '40%'},
+     
         outsideClickDeselects: eventTarget => {
           if (
             self.$refs.funcSelect.$refs.mySelect.contains(eventTarget) ||
@@ -168,21 +180,31 @@ export default {
           return true;
         },
         className: "htCenter htMiddle",
-        afterSelectionEnd(r,c,r2,c2){
-          // const getArea = (coor) =>{
-          //     return (coor[2]-coor[0]+1)*(coor[3]-coor[1]+1)
-          // }
-          // const mix = (d1,d2)=>{
-          //   const d3 = d1.map((ele,index)=>{
-          //     if(index<2){
-          //         return Math.min(ele,d2[index])
-          //     }
-          //     return Math.max(ele,d2[index])
-          //   })
-          //   return d3
-          // }
+        afterSelection(r, c, r2, c2) {
+          self.selectedRange = [r, c, r2, c2];
 
-          self.hot1[Symbol.for('lastSelected')] = self.hot1.getSelected();
+        },
+
+        afterSelectionEnd(r,c,r2,c2){
+          if(r>r2){
+            [r,r2]=[r2,r]
+          }
+          if(c>c2){
+            [c,c2]=[c2,c]
+          }
+          const SelectedRange = self.hot1.getSelected();
+          if(SelectedRange.length===1){
+            self.selectedRow = []
+          }
+          for(let i = r;i<=r2;i++){
+            if(!self.selectedRow[i]){
+              self.selectedRow[i] = [];
+            }
+            for(let u=c; u<=c2; u++){
+              self.selectedRow[i][u] = 1
+            }
+          }
+          self.hot1[Symbol.for('lastSelected')] = SelectedRange;
           // let mixed= self.hot1[Symbol.for('lastSelected')].reduce(mix)
           // self.hot1[Symbol.for('lastSelected')] = 
           if(self.funcStore[`${r}-${c}`]&& /^=/.test(self.funcStore[`${r}-${c}`])){
@@ -331,8 +353,7 @@ export default {
           }
           if (changes) {
 
-            console.log(changes);
-            self.chartDataUpload();
+            self.chartDataUpDate(changes);
             self.isEdit = true;
             self.$emit("whetherSave", self.isEdit, self.id);
           }
@@ -397,12 +418,7 @@ export default {
               self.selectedData[i][j] = this.getDataAtCell(i, j);
             }
           }
-        },
-        // 2018.4.2 new setting add
-        afterSelection(r, c, r2, c2) {
-          self.selectedRange = [r, c, r2, c2];
-        },
-
+        },       
         beforeAutofillInsidePopulate(
           index,
           direction,
@@ -512,44 +528,81 @@ export default {
   },
 
   methods: {
-    chartDataUpload(){
+    chartDataUpDate(changes){
+      
+      // this.chartOptionsSourse.forEach((ele, index)=>{
+      //   debugger
+      //   if(changes.some(ele2=>ele.selectedRow[ele2[0]][ele2[1]] === 1)){
+      //     this.chartOptionsSourse[index] = {
+      //       ...ele,
+      //       ...{
+      //         data: this.computeChartData(ele.selectedRow, ele.range)
+      //       }
+      //     }
+      //   }
+      // })
       this.chartOptionsSourse = this.chartOptionsSourse.map(ele=>{
-        return{
-          ...ele,
-          ...{
-            data: this.computeChartData(ele.range)
+        //前置校验 减少重绘
+        if(changes.some(ele2=>ele.selectedRow[ele2[0]]&&ele.selectedRow[ele2[0]][ele2[1]] === 1)){
+          return{
+            ...ele,
+            ...{
+              data: this.computeChartData(ele.selectedRow, ele.range)
+            }
           }
         }
+        return ele
       })
     },
-    computeChartData(selectRange){
-      let dataRange = selectRange.map(ele=>this.hot1.getData(...ele));
-      let data = dataRange[0]
-      if(dataRange.length>0){
-        // 多段选择
-          if(dataRange[0][0].constructor.name === 'Array'){
-            data = dataRange[0].map((ele, index)=>{
-              let newArr = [];
-              for (const iterator of dataRange) {
-                newArr = [...newArr, ...iterator[index]]
-              }
-                return newArr
-            });
-          }else{
-
-          }
+    computeChartData(selectedRow, range){
+      if(range&& range.length===1){
+        return this.hot1.getData(...range[0])
       }
+      const selectedCol = selectedRow.find(ele=>ele)
+      const emptyRow = Array.from(selectedRow).map((ele,index)=>ele?false:index).filter(ele=>ele)
+      const emptyCol = Array.from(selectedCol).map((ele,index)=>ele?false:index).filter(ele=>ele)
+      const bigestRange= [
+        selectedRow.findIndex(ele=>ele),
+        selectedCol.findIndex(ele=>ele),
+        selectedRow.length-1,
+        selectedCol.length-1,
+      ]
+      console.log(bigestData)
+      let bigestData = this.hot1.getData(...bigestRange)
+      let data = bigestData.filter((ele,index)=> !emptyRow.includes(index))
+        .map(ele=>ele.filter((ele,index)=> !emptyCol.includes(index)))
+
       return data
     },
     chartSelect(v, i) {
       const selectRange = this.hot1[Symbol.for('lastSelected')]
-      let data = this.computeChartData(selectRange)
+      let data;
+      if(selectRange.length>1){
+        // 前置校验是否进行了多次选择， 减少计算成本
+        const selectedCol = this.selectedRow.find(ele=>ele)
+        const colStr = selectedCol.toString()
+        if(this.selectedRow.some(ele=>ele.toString() !== colStr)){
+          this.$alert(
+            "图表的数据范围不能形成一个规则矩形,请重新选择。",
+            "范围选择错误",
+            {
+              confirmButtonText: "确定"
+            }
+          );
+          return false
+        }
+        data = this.computeChartData(this.selectedRow)
+      }else{
+        data = this.hot1.getData(...selectRange[0])
+      }
+      
       this.chartOptionsSourse.push({
         data,
         type: v,
         title:'图表标题',
         transpose: false,
-        range: selectRange
+        range: selectRange,
+        selectedRow: this.selectedRow,
       })
 
     },
@@ -617,6 +670,9 @@ export default {
       }
     },
     toggleChartsRange(item,show){
+      if(!this.editorAble){
+        return false
+      }
       if(show){
         if(item.range==='full'){
           this.addDrawStep('full', 'chartStep')
@@ -631,6 +687,14 @@ export default {
         this.drawCanvas()
     },
     addDrawStep(r, c, r2, c2,type) {
+      if(r>r2){
+        [r,r2]=[r2,r]
+      }
+      if(c>c2){
+        [c,c2]=[c2,c]
+      }
+
+      
       const _this =this;
       //  _this.hot1.getPlugin('autoRowSize').recalculateAllRowsHeight()
       const rowsHeight = _this.hot1.getPlugin('autoRowSize').heights.map(ele=>ele<_this.hotSettings.rowHeights?_this.hotSettings.rowHeights:ele)
@@ -691,7 +755,9 @@ export default {
     },
     createCanvas(node) {
       let Canvas = document.createElement("canvas");
-      node.appendChild(Canvas);
+      node =node.getElementsByClassName('wtHider')[0]
+      console.log(node)
+      node.appendChild(Canvas)
       this.canvasNode = Canvas;
       this.createInput(node);
       return Canvas;
@@ -1307,8 +1373,7 @@ export default {
   mounted() {
     var self = this;
     var webExcel = document.getElementById(`${this.idName}`);
-    let Canvas = this.createCanvas(webExcel);
-    this.canvas = Canvas;
+
     self.hot1 = new Handsontable(webExcel, self.hotSettings);
     self.hot1.updateSettings({
       contextMenu: {
@@ -1460,11 +1525,36 @@ export default {
         }
       }
     });
+    if( this.editorAble){
+      let Canvas = this.createCanvas(webExcel);
+      this.canvas = Canvas;
+    }
   }
 };
 </script>
 
 <style rel="stylesheet/scss" lang="scss">
+.excel-display{
+  text-align: center;
+  position: relative;
+  height: auto;
+  .flex-wrap{
+    width: 100%;
+  }
+
+  .hot{
+    display: inline-block;
+    margin: 0 auto;
+    pointer-events: none;
+  }
+  .chart-wrap{
+    pointer-events: none;    
+  }
+}
+.hot .ht_master>.wtHolder {
+  height: auto !important;
+  display: inline-block;
+}
 .excel-wrap {
   width: 95%;
   margin: 0 auto;
@@ -1666,18 +1756,23 @@ td {
     }
   }
 }
+.charts{
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+}
 .chart-wrap{
   margin-top: 18px;
-  height: 275px;
+  height: 300px;
   background: #FFFFFF;
   border: 1px solid #E5E9F1;
   box-shadow: 0 0 3px 0 #CED7E8;
   width: calc(50% - 10px);
-  margin-right: 20px;
+  margin-right: 0;
   box-sizing: border-box;
   position: relative;
   &:nth-child(odd){
-    margin-right: 0;
+    margin-right: 20px;
   }
   .chart-layer{
     position: absolute;
