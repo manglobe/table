@@ -315,6 +315,11 @@ export const excelCharts = {
               crossStyle: {
                   color: '#999'
               }
+          },
+          formatter: params=>{
+            console.log(params);
+            params[1].data = `${(params[1].data*100).toFixed(2)}%`
+            return `${params[0].name}: ${params[0].data}<br /> ${params[1].data}`
           }
         },
         legend: {
@@ -352,15 +357,18 @@ export const excelCharts = {
             itemStyle:{
               borderColor: 'rgba(0,0,0,0.3)',
               borderWidth: 1,
+              // tooltip:{
+              //   formatter: params=> params.data
+              // }
             }
           },
           {
             type:"line",
             data: sortedProportion,
             yAxisIndex: 1,
-            tooltip:{
-              formatter: (params) =>{return `${(params.data*100).toFixed(2)} %`}
-            }
+            // tooltip:{
+            //   formatter: (params) =>{return `${(params.data*100).toFixed(2)} %`}
+            // }
           },
         ]
       }
