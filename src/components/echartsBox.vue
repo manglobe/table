@@ -93,6 +93,7 @@ export default {
         height: 100%;
     }
     .charts-controller{
+        padding-bottom: 5px;
         display: inline-block;
         position: absolute;
         right: 20px;

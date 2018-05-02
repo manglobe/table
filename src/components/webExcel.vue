@@ -1,7 +1,6 @@
 <template>
-    <section :class="{'excel-wrap': editorAble, 'excel-display': !editorAble}" ref="excelWrap" v-if="!isDelete">
+    <section :class="{'excel-wrap': editorAble, 'excel-display': !editorAble}" ref="excelWrap" >
       <div class="flex-wrap">
-        <!-- <el-input class="table-name" v-model='tableName'></el-input> -->
         <div v-if="editorAble" class="btn-handle-2">
           <!-- <el-button 
             v-if="isEdit"
@@ -110,11 +109,19 @@ export default {
     },
     propTable: {
       type: Object,
-      default: {}
+      default:  function(){
+        return {}
+      }
     },
     editorAble: {
       type: Boolean,
       default: true
+    },
+    save:{
+      type: Function,
+    },
+    delete:{
+      type: Function,
     }
   },
   data() {
@@ -136,11 +143,9 @@ export default {
       funcStore: {},
       funcCache: "",
       visible: false,
-      isDelete: false,
       hot1: "",
       isEdit: false,
       saving: false,
-      tableName: self.propTable.tableName,
       tableId: self.propTable.tableId,
       new: self.propTable.new,
       clipboardCache: [],
@@ -352,7 +357,6 @@ export default {
             self.funcRender();
           }
           if (changes) {
-
             self.chartDataUpDate(changes);
             self.isEdit = true;
             self.$emit("whetherSave", self.isEdit, self.id);
@@ -501,13 +505,36 @@ export default {
   },
 
   watch: {
+    "propTable": function(newVal, oldVal) {
+      this.chartOptionsSourse= newVal.imgData?JSON.parse(newVal.imgData):[]
+      this.tableId= newVal.tableId
+      this.new= newVal.new
+      this.hotSettings={...this.hotSettings,
+      ...{
+        data:typeof newVal.tableData === "string"
+            ? JSON.parse (newVal.tableData)
+            : newVal.tableData
+      }}
+      console.log(newVal)
+      this.hot1.updateSettings(
+        {data:this.hotSettings.data}
+      )
+      setTimeout(()=>{
+        console.log(3)
+        this.isEdit = false;
+        this.$emit("whetherSave", this.isEdit, this.id);
+      })
+    },
     "hotSettings.data": function(newVal, oldVal) {
+      console.log(1)
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
     },
     "chartOptionsSourse":function(){
+      console.log(2)
       this.isEdit = true;
-    }
+      this.$emit("whetherSave", this.isEdit, this.id);
+    },
   },
 
   computed: {
@@ -567,7 +594,6 @@ export default {
         selectedRow.length-1,
         selectedCol.length-1,
       ]
-      console.log(bigestData)
       let bigestData = this.hot1.getData(...bigestRange)
       let data = bigestData.filter((ele,index)=> !emptyRow.includes(index))
         .map(ele=>ele.filter((ele,index)=> !emptyCol.includes(index)))
@@ -756,7 +782,6 @@ export default {
     createCanvas(node) {
       let Canvas = document.createElement("canvas");
       node =node.getElementsByClassName('wtHider')[0]
-      console.log(node)
       node.appendChild(Canvas)
       this.canvasNode = Canvas;
       this.createInput(node);
@@ -1324,56 +1349,36 @@ export default {
         ),
         quotaId: this.$route.query.quotaId,
         tableId: this.tableId,
-        tableName: this.tableName
       };
     },
     saveTable() {
       let params = {...this.getExcelData(),...{imgData: JSON.stringify(this.chartOptionsSourse)}};
       this.saving = true;
       this.isEdit = false;
-      if (!this.new) {
-        this.$service.updateTable(params).then(res => {
-          if (res.responseCode == "0") {
-            this.saving = false;
-            this.isEdit = false;
-            this.$message.success("保存成功！");
-            this.$emit("whetherSave", this.isEdit, this.id);
-          }
-        });
-      } else {
-        this.$service.saveTable(params).then(res => {
-          if (res.responseCode == "0") {
-            this.new = false;
-            this.tableId = res.result.tableId;
-            this.saving = false;
-            this.isEdit = false;
-            this.$message.success("保存成功！");
-            this.$emit("whetherSave", this.isEdit, this.id);
-          }
-        });
-      }
+      this.save(params,this.new).then(res => { 
+        if (res.responseCode == "0") {
+          this.new = false;
+          this.tableId = res.result.tableId;
+          this.saving = false;
+          this.isEdit = false;
+          this.$message.success("保存成功！");
+          this.$emit("whetherSave", this.isEdit, this.id);
+        }
+      });
     },
     deleteTable() {
       let params = { tableId: this.tableId };
-      if (this.tableId) {
-        this.$service.deleteTable(params).then(res => {
-          if (res.responseCode == "0") {
-            this.$message.success("删除成功");
-            this.isDelete = true;
-            this.$emit("whetherSave", "del", this.id);
-          }
-        });
-      } else {
-        this.$message.success("删除成功");
-        this.isDelete = true;
-        this.$emit("whetherSave", "del", this.id);
-      }
+      this.delete(params).then(res=>{
+        if (res.responseCode == "0") {
+          this.$message.success("删除成功");
+          this.$emit("whetherSave", "del", this.id);
+        }
+      })
     }
   },
   mounted() {
     var self = this;
     var webExcel = document.getElementById(`${this.idName}`);
-
     self.hot1 = new Handsontable(webExcel, self.hotSettings);
     self.hot1.updateSettings({
       contextMenu: {
@@ -1529,7 +1534,7 @@ export default {
       let Canvas = this.createCanvas(webExcel);
       this.canvas = Canvas;
     }
-  }
+  },
 };
 </script>
 

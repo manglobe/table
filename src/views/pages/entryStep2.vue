@@ -17,6 +17,7 @@
           </el-button>
         </div>	 
         <el-pagination
+          
           ref = "pagonation"
           class="pagonation"
           :current-page="currentPage"
@@ -35,16 +36,26 @@
 	    	  @click="confirmGotoStep(3)">下一步</el-button>
 	    </div>
 		<div class="entry-step-2">
-			
-	        <div class="indicator-table">
-	            <web-excel 
-	              v-for='(indicatorTable, index) in indicatorsTable'
-                v-if = 'currentPage-1 == index'
-	              :key="index"
-	              :prop-table="indicatorTable"
-	              v-on:whetherSave='dependEdit'
-	              :id="index"></web-excel>         
-	        </div>
+        <div class="indicator-table">
+          <web-excel 
+            v-if="currentTableData"
+            :prop-table="currentTableData"
+            v-on:whetherSave='dependEdit'
+            :id="currentPage-1"
+            :save="save"
+            :delete="del"
+            ></web-excel>     
+            <!-- <web-excel 
+            v-for='(indicatorTable, index) in indicatorsTable'
+            v-if = 'vif(index) '
+            :key="index"
+            :prop-table="indicatorTable"
+            v-on:whetherSave='dependEdit'
+            :id="currentPage-1"
+            :save="save"
+            :delete="del"
+            ></web-excel>      -->
+        </div>
 		</div>
 		<el-dialog
 		  size="tiny"
@@ -103,12 +114,17 @@ export default {
       currentPage: 1,
     };
   },
+  computed:{
+    currentTableData(){
+      console.log(this.indicatorsTable[this.currentPage-1])
+      return this.indicatorsTable[this.currentPage-1]
+    }
+  },
   beforeRouteEnter(to, from, next) {
     service.getOldTable(to.query.quotaId).then(res => {
       next(vm => {
         if (res.result) {
           vm.indicatorsTable = res.result;
-          console.log(res.result);
         }
       });
     });
@@ -118,7 +134,6 @@ export default {
       let mark = this.args.some(data => {
         return data === true;
       });
-      console.log(mark);
       mark ? (this.dialogVisible = true) : this.gotoStep(num);
     },
     gotoStep(num) {
@@ -134,8 +149,6 @@ export default {
       });
     },
     dependEdit(arg1, arg2) {
-      console.log(arg1)
-      console.log(arg2)
       if (arg1 != "del") {
         this.$set(this.args, parseInt(arg2), arg1);
       } else {
@@ -165,7 +178,6 @@ export default {
       let mark = this.args.some(data => {
         return data === true;
       });
-      console.log(number,this.currentPage)
       if(mark){
         this.dialogVisible = true;
         return false
@@ -175,7 +187,39 @@ export default {
     },
     changePageProxy(number){
         this.currentPage = number
-    }
+    },
+    save(params){
+      const index = this.currentPage-1
+      params= {...params,...{sort:index}}
+      if(this.indicatorsTable[index].new){
+        return this.$service.saveTable(params).then(res=>{
+          if (res.responseCode == "0") {
+            this.indicatorsTable.splice(index, 1, res.result)
+            return res
+          }
+        })
+      }
+      return this.$service.updateTable(params).then(res=>{
+        if (res.responseCode == "0") {
+          this.indicatorsTable = res.result.filter(ele=>ele.isDeleted === 'n')
+          return res
+        }
+      })
+    },
+    vif(index){
+      console.log(index, this.currentPage -1)
+      return index === this.currentPage -1
+    },
+    del (params){
+      const index = this.currentPage-1
+      return this.$service.deleteTable(params).then(res=>{
+        if (res.responseCode == "0") {
+          this.indicatorsTable.splice(index,1);
+          this.currentPage = Math.min(index+1, this.indicatorsTable.length)||1
+          return res
+        }
+      })
+   }
   },
   mounted(){
     const _this = this
