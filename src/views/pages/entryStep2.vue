@@ -8,14 +8,24 @@
 			<!-- <span class="step" @click="confirmGotoStep(4)"><span class="arrow"></span>4、分析结果</span> -->
 		</div>
 		<div class="button-wrapper">
-           <div class="creat-excel-btn">
-	        	<el-button @click="addTable">
-              	<i 
-							  style="font-size:16px;margin-right:10px"
-							  class="el-icon-plus"></i>
-              新增表格
-            </el-button>
-	        </div>	  
+        <div class="creat-excel-btn">
+          <el-button @click="addTable">
+              <i 
+              style="font-size:16px;margin-right:10px"
+              class="el-icon-plus"></i>
+            新增表格
+          </el-button>
+        </div>	 
+        <el-pagination
+          ref = "pagonation"
+          class="pagonation"
+          :current-page="currentPage"
+          @current-change= "changePage"
+          :page-size="1"
+          layout="total,prev, pager, next"
+          :total="indicatorsTable.length"
+          >
+        </el-pagination> 
 		    <el-button
 			  size="large"
 			  @click="confirmGotoStep(1)">上一步</el-button>
@@ -29,6 +39,7 @@
 	        <div class="indicator-table">
 	            <web-excel 
 	              v-for='(indicatorTable, index) in indicatorsTable'
+                v-if = 'currentPage-1 == index'
 	              :key="index"
 	              :prop-table="indicatorTable"
 	              v-on:whetherSave='dependEdit'
@@ -88,7 +99,8 @@ export default {
       ],
       indicatorsTable: [],
       args: [],
-      dialogVisible: false
+      dialogVisible: false,
+      currentPage: 1,
     };
   },
   beforeRouteEnter(to, from, next) {
@@ -122,6 +134,8 @@ export default {
       });
     },
     dependEdit(arg1, arg2) {
+      console.log(arg1)
+      console.log(arg2)
       if (arg1 != "del") {
         this.$set(this.args, parseInt(arg2), arg1);
       } else {
@@ -146,7 +160,35 @@ export default {
         new: true,
         tableName: "表格名称"
       });
+    },
+    changePage(number){
+      let mark = this.args.some(data => {
+        return data === true;
+      });
+      console.log(number,this.currentPage)
+      if(mark){
+        this.dialogVisible = true;
+        return false
+      }else{
+        this.currentPage = number
+      }
+    },
+    changePageProxy(number){
+        this.currentPage = number
     }
+  },
+  mounted(){
+    const _this = this
+    this.$refs.pagonation.$el.addEventListener('click',function(e){
+      
+      let mark = _this.args.some(data => {
+        return data === true;
+        });
+        if(mark){
+          e.stopPropagation()
+          _this.dialogVisible = true;
+        }
+      }, true)
   }
 };
 </script>
@@ -239,6 +281,17 @@ export default {
         background: #68d1be;
       }
     }
+  }
+
+  .pagonation{
+    display: inline-block;
+    position: absolute;
+    left: 150px;
+    top: 50%;
+    bottom: 0;
+    margin: auto;
+    vertical-align: middle;
+    transform: translate(0,-50%);
   }
 }
 </style>

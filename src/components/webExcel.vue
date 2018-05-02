@@ -109,7 +109,8 @@ export default {
       default: ""
     },
     propTable: {
-      type: Object
+      type: Object,
+      default: {}
     },
     editorAble: {
       type: Boolean,
@@ -130,7 +131,6 @@ export default {
         label: excelCharts[ele].name
       })),
       titleEditingIndex:'',
-      maxColsNumber:16,
       drawStep: [],
       chartStep: [],
       funcStore: {},
@@ -161,8 +161,8 @@ export default {
         comments: true,
         colHeaders: true,
         rowHeaders: true,
-        minCols: 1,
-        minRows: 1,
+        minCols: 10,
+        minRows: 8,
         maxCols: 15,
         colWidths: this.editorAble?120:64,
         rowHeaderWidth: this.editorAble?52:40,
