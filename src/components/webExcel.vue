@@ -6,6 +6,18 @@
             v-if="isEdit"
             type="text" 
             @click="editTable">编辑表</el-button> -->
+          <span class="excel-undo" @click="undo">
+            <svg aria-hidden="true">
+              <use xlink:href="#icon-hebingxingzhuang"></use>
+            </svg>
+            撤销
+          </span>
+          <span class="excel-redo" @click="redo">
+            重做
+            <svg aria-hidden="true">
+              <use xlink:href="#icon-hebingxingzhuang"></use>
+            </svg>
+          </span>
           <el-button 
             type="text" 
             @click="saveTable"
@@ -174,15 +186,16 @@ export default {
         columnHeaderHeight: this.editorAble?40:30,
         autoRowSize: {syncLimit: '40%'},
      
-        outsideClickDeselects: eventTarget => {
-          if (
-            self.$refs.funcSelect.$refs.mySelect.contains(eventTarget) ||
-            self.$refs.excel.contains(eventTarget)
-          ) {
-            return false;
-          }
-          return true;
-        },
+        outsideClickDeselects: false,
+        //  eventTarget => {
+        //   if (
+        //     self.$refs.funcSelect.$refs.mySelect.contains(eventTarget) ||
+        //     self.$refs.excel.contains(eventTarget)
+        //   ) {
+        //     return false;
+        //   }
+        //   return true;
+        // },
         className: "htCenter htMiddle",
         afterSelection(r, c, r2, c2) {
           self.selectedRange = [r, c, r2, c2];
@@ -292,7 +305,12 @@ export default {
                 newVal = "#VALUE!";
                 if (error === "choose self") {
                   self.$alert(
-                    "公式中的单元格引用了公式的结果，从而创建了循环引用,请重新选择。",
+                    self.$createElement('p',  {class:"confirm-message" }, [
+                      self.$createElement('svg', null, [
+                        self.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+                      ]),
+                      self.$createElement('span', null, '公式中的单元格引用了公式的结果，从而创建了循环引用,请重新选择。')
+                    ]),
                     "范围选择错误",
                     {
                       confirmButtonText: "确定"
@@ -301,9 +319,15 @@ export default {
 
                   controlStore([`${row}-${col}`], false);
                   newVal = null;
-                } else if (sourse !== "funcRender") {
-                  self.$alert(`你是否要输入公式文本? 
-当第一个字符是 = 时，表格会认为它是公式，为避免这个问题，请在 = 号前输入'，例如：'=1+1，则此时单元格会显示：=1+1`, "公式输入异常", {
+                } else if (sourse !== "funcRender") { 
+                  self.$alert(
+                    self.$createElement('p',  {class:"confirm-message" }, [
+                      self.$createElement('svg', null, [
+                        self.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+                      ]),
+                      self.$createElement('span', null, `你是否要输入公式文本?
+                      当第一个字符是 = 时，表格会认为它是公式，为避免这个问题，请在 = 号前输入'，例如：'=1+1，则此时单元格会显示：=1+1`)
+                    ]), "公式输入异常", {
                     confirmButtonText: "确定"
                   });
                 }
@@ -551,21 +575,18 @@ export default {
 
   methods: {
     chartDataUpDate(changes){
-      
-      // this.chartOptionsSourse.forEach((ele, index)=>{
-      //   debugger
-      //   if(changes.some(ele2=>ele.selectedRow[ele2[0]][ele2[1]] === 1)){
-      //     this.chartOptionsSourse[index] = {
-      //       ...ele,
-      //       ...{
-      //         data: this.computeChartData(ele.selectedRow, ele.range)
-      //       }
-      //     }
-      //   }
-      // })
       this.chartOptionsSourse = this.chartOptionsSourse.map(ele=>{
+        // 全局图表
+        if(ele.range === 'full'){
+          return {
+            ...ele,
+            ...{
+              data:JSON.parse(this.getExcelData().tableData),
+            }
+          }
+        }
         //前置校验 减少重绘
-        if(changes.some(ele2=>ele.selectedRow[ele2[0]]&&ele.selectedRow[ele2[0]][ele2[1]] === 1)){
+        if(changes.some(changesEle=>ele.selectedRow[changesEle[0]]&&ele.selectedRow[changesEle[0]][changesEle[1]] === 1)){
           return{
             ...ele,
             ...{
@@ -604,7 +625,12 @@ export default {
         const colStr = selectedCol.toString()
         if(this.selectedRow.some(ele=>ele.toString() !== colStr)){
           this.$alert(
-            "图表的数据范围不能形成一个规则矩形,请重新选择。",
+            this.$createElement('p',  {class:"confirm-message" }, [
+              this.$createElement('svg', null, [
+                this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+              ]),
+              this.$createElement('span', null, "图表的数据范围不能形成一个规则矩形,请重新选择。")
+            ]),
             "范围选择错误",
             {
               confirmButtonText: "确定"
@@ -653,7 +679,7 @@ export default {
           this.$confirm(
             this.$createElement('p',  {class:"confirm-message" }, [
               this.$createElement('svg', null, [
-                 this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}, class:'xxx'},null)
+                 this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
               ]),
               this.$createElement('span', null, '确定要删除该表格吗？')
             ]),
@@ -756,10 +782,12 @@ export default {
       }
       Input.row = selectItem[0];
       Input.col = selectItem[1];
-      this.drawInput(
-        `=${v.toUpperCase()}(`,
-        true
-      );
+      setTimeout(()=>{
+        this.drawInput(
+          `=${v.toUpperCase()}(`,
+          true
+        );
+      })
     },
     funcRender() {
       let renderArr =  Object.keys(this.funcStore).map(ele=>{
@@ -840,7 +868,6 @@ export default {
         this.drawFromInput();
       };
     },
-
     drawCanvas() {
       const colorArr = [
         "#71a1e6",
@@ -863,7 +890,6 @@ export default {
         ele.render(ctx, colorArr[index % 7]);
       });
     },
-
     drawInput(value, startEdit) {
       let Input = this.inputNode;
       let InputDisplay = this.inputDisplay;
@@ -986,21 +1012,6 @@ export default {
       setTimeout(() => window.addEventListener("click", clickHandle));
       return Input;
     },
-
-    // selectTd(r, c, r2, c2) {
-    //   const _this =this 
-    //   this.drawStep.push({
-    //     render(ctx, color) {
-    //       ctx.strokeStyle = color;
-    //       ctx.strokeRect(
-    //         _this.hotSettings.rowHeaderWidth + c *  _this.hotSettings.colWidths,
-    //         _this.hotSettings.columnHeaderHeight + r * _this.hotSettings.rowHeights,
-    //         (c2 - c + 1) * _this.hotSettings.colWidths ,
-    //         (r2 - r + 1) * _this.hotSettings.rowHeights
-    //       );
-    //     }
-    //   });
-    // },
     drawFromInput() {
       if (!/^=/.test(this.inputNode.value)) {
         this.inputDisplay.innerHTML = this.inputNode.value
@@ -1042,7 +1053,6 @@ export default {
         console.log(error);
       }
     },
-
     changeCellType(type) {
       let self = this;
       for (var i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
@@ -1368,6 +1378,14 @@ export default {
           this.$emit("whetherSave", "del", this.id);
         }
       })
+    },
+    undo(){
+      // console.log(this.hot1.isUndoAvailable())
+      this.hot1.undo()
+    },
+    redo(){
+      // console.log(this.hot1.isRedoAvailable())
+      this.hot1.redo()
     }
   },
   mounted() {
@@ -1524,7 +1542,7 @@ export default {
         }
       }
     });
-    if( this.editorAble){
+    if(this.editorAble){
       let Canvas = this.createCanvas(webExcel);
       this.canvas = Canvas;
     }
@@ -1534,6 +1552,7 @@ export default {
 
 <style rel="stylesheet/scss" lang="scss">
 .excel-display{
+  margin:0 auto;
   text-align: center;
   position: relative;
   height: auto;
@@ -1595,6 +1614,27 @@ export default {
   text-align: right;
   margin: 0 auto;
   width: 100%;
+  .excel-undo,.excel-redo{
+    float: left;
+    margin-top:10px;
+    font-size: 14px;
+    color: #666;
+    cursor:pointer;
+    svg{
+      vertical-align:middle;
+      width:14px;
+      height:14px;
+      display:inline-block;
+      margin-right:5px;
+    }
+  }
+  .excel-redo{
+    margin-left: 20px;
+    svg{
+      transform: scaleX(-1);
+      margin-left:5px;
+    }
+  }
   .line {
     display: inline-block;
     height: 16px;
@@ -1843,19 +1883,19 @@ td {
       
     }
   }
-  .confirm-message{
-    text-align: center;
-    svg{
-      width: 24px;
-      height: 24px;
-      margin: 0 12px;
-      vertical-align: middle;
-    }
-    span{
-      font-size: 14px;
-      color: #333333;
-      vertical-align: middle;      
-    }
+}
+.confirm-message{
+  text-align: left;
+  svg{
+    width: 24px;
+    height: 24px;
+    margin: 0 12px;
+    vertical-align: middle;
+  }
+  span{
+    font-size: 14px;
+    color: #333333;
+    vertical-align: middle;      
   }
 }
 </style>

@@ -41,7 +41,8 @@
                 <div class="paragraph">
                     <span>4&nbsp;&nbsp;检测项目分析报告：</span>
                     <div 
-                      v-for='(indicatorTable, index) in indicatorsTable'>
+                        style="padding:20px 0"    
+                        v-for='(indicatorTable, index) in indicatorsTable'>
                         <web-excel 
                         :editorAble="false"
                         :key="index"

@@ -45,35 +45,8 @@
             :save="save"
             :delete="del"
             ></web-excel>     
-            <!-- <web-excel 
-            v-for='(indicatorTable, index) in indicatorsTable'
-            v-if = 'vif(index) '
-            :key="index"
-            :prop-table="indicatorTable"
-            v-on:whetherSave='dependEdit'
-            :id="currentPage-1"
-            :save="save"
-            :delete="del"
-            ></web-excel>      -->
         </div>
 		</div>
-		<el-dialog
-		  size="tiny"
-		  :visible.sync='dialogVisible'>
-		  <i class="el-icon-warning" style="vertical-align: top;margin-top: 10px;margin-right: 15px;font-size: 40px;"></i>
-		  <div style="display: inline-block;">
-		  	<strong style="font-size: 18px;">您对表格有做修改，但尚未保存！</strong>
-		  	<div style="font-size: 15px;margin-top: 15px;">请点击表格右上角保存按钮进行保存</div>
-		  </div>
-		  <span slot="footer" class="dialog-footer">
-		    <!-- <el-button 
-		      @click="gotoStep()" 
-		      size="small"
-		      style="margin-right: 30px;">不保存</el-button> -->
-		  	<el-button @click="dialogVisible = false" size="small" type="primary">知道了</el-button>
-		  	<!-- <el-button @click="gotoStep()" type="primary" size="small">保存</el-button> -->
-		  </span>  	
-		</el-dialog>
 	</div>	
 </template>
 
@@ -110,7 +83,6 @@ export default {
       ],
       indicatorsTable: [],
       args: [],
-      dialogVisible: false,
       currentPage: 1,
     };
   },
@@ -130,11 +102,24 @@ export default {
     });
   },
   methods: {
+    unSaveAlert(){
+      this.$alert(
+        this.$createElement('p',  {class:"confirm-message" }, [
+          this.$createElement('svg', null, [
+            this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+          ]),
+          this.$createElement('span', null, '您对表格有所修改，但尚未保存，请点击表格右上角进行保存！')
+        ]),
+      '',
+      {
+        confirmButtonText: '知道了'
+      });
+    },
     confirmGotoStep(num) {
       let mark = this.args.some(data => {
         return data === true;
       });
-      mark ? (this.dialogVisible = true) : this.gotoStep(num);
+      mark ? this.unSaveAlert() : this.gotoStep(num);
     },
     gotoStep(num) {
       let query = this.$route.query.isEdit
@@ -179,7 +164,8 @@ export default {
         return data === true;
       });
       if(mark){
-        this.dialogVisible = true;
+        // this.dialogVisible = true;
+        this.unSaveAlert()
         return false
       }else{
         this.currentPage = number
@@ -230,7 +216,8 @@ export default {
         });
         if(mark){
           e.stopPropagation()
-          _this.dialogVisible = true;
+          // _this.dialogVisible = true;
+          _this.unSaveAlert()
         }
       }, true)
   }
