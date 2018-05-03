@@ -147,7 +147,6 @@ export default {
       isEdit: false,
       saving: false,
       tableId: self.propTable.tableId,
-      new: self.propTable.new,
       clipboardCache: [],
       sheetclip: new SheetClip(),
       firstSelectedRow: "",
@@ -508,7 +507,6 @@ export default {
     "propTable": function(newVal, oldVal) {
       this.chartOptionsSourse= newVal.imgData?JSON.parse(newVal.imgData):[]
       this.tableId= newVal.tableId
-      this.new= newVal.new
       this.hotSettings={...this.hotSettings,
       ...{
         data:typeof newVal.tableData === "string"
@@ -520,18 +518,15 @@ export default {
         {data:this.hotSettings.data}
       )
       setTimeout(()=>{
-        console.log(3)
         this.isEdit = false;
         this.$emit("whetherSave", this.isEdit, this.id);
       })
     },
     "hotSettings.data": function(newVal, oldVal) {
-      console.log(1)
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
     },
     "chartOptionsSourse":function(){
-      console.log(2)
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
     },
@@ -1355,9 +1350,8 @@ export default {
       let params = {...this.getExcelData(),...{imgData: JSON.stringify(this.chartOptionsSourse)}};
       this.saving = true;
       this.isEdit = false;
-      this.save(params,this.new).then(res => { 
+      this.save(params).then(res => { 
         if (res.responseCode == "0") {
-          this.new = false;
           this.tableId = res.result.tableId;
           this.saving = false;
           this.isEdit = false;
