@@ -1,5 +1,6 @@
 <template>
 	<div class="indicator-lib">
+    <iframe src="" frameborder="0" class="pdf-iframe" ref="iframe"></iframe>
 		<section class="form-wrap">
 
 			<div class="handle-wrap">
@@ -79,7 +80,7 @@
 		<section class="display-wrap">
 			<div class="table-title">质量指标库</div>
 			<div class="handle-table">
-				<el-button type="text">导出</el-button>
+				<el-button type="text" @click="pdf">导出</el-button>
 				<span class="line"></span>
 				<el-button type="text">打印</el-button>
 			</div>    	
@@ -89,6 +90,7 @@
 			element-loading-text="拼命加载中" 
 			empty-text="没有您查询的结果，请重新输入条件查询"
 			stripe 
+      @selection-change="handleSelectionChange"
 			style="width: 1082">
 				<el-table-column type="selection" width="50"></el-table-column>
 				<el-table-column label="序列" type="index" width="70"></el-table-column>
@@ -245,6 +247,26 @@ export default {
     handleCurrentChange(num) {
       this.curPage = num;
       this.loadIndicators();
+    },
+    handleSelectionChange(selection){
+      this.selectedUrl = selection.map(ele=>ele.quotaId)
+    },
+    pdf(){
+      // this.$refs.iframe.src= `#/preview?quotaId=${this.selectedUrl[0]}&cacheId=${this.selectedUrl.join('&')}`
+      // document.getElementsByTagName('iframe')[0].contentWindow.document.getElementById('preview')
+      let index = 0
+      const downPdf = id =>{
+        this.$refs.iframe.src= `#/preview?quotaId=${this.selectedUrl[0]}&pdf=true`
+        if(index>=1) {
+          this.$refs.iframe.contentWindow.location.reload(true);
+        }
+          index++
+      }
+      downPdf()
+      window.pdfNext= ()=>{
+        console.log(this.selectedUrl[index])
+        this.selectedUrl[index]&&downPdf(this.selectedUrl[index])
+      }
     }
   }
 };
@@ -355,5 +377,18 @@ export default {
       border: none;
     }
   }
+}
+
+.pdf-iframe{
+  position: fixed;
+  // opacity: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  overflow: scroll;
+  display: block;
+  // z-index: -999;
+  width: 100%;
 }
 </style>

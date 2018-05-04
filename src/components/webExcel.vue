@@ -13,10 +13,10 @@
             撤销
           </span>
           <span class="excel-redo" @click="redo">
-            重做
             <svg aria-hidden="true">
               <use xlink:href="#icon-hebingxingzhuang"></use>
             </svg>
+            重做
           </span>
           <el-button 
             type="text" 
@@ -1454,8 +1454,13 @@ export default {
               if (midArr.length > 1) {
                 self
                   .$confirm(
-                    "合并后的单元格将只保留左/上单元格中的值，确定合并吗？",
-                    "合并单元格",
+                    self.$createElement('p',  {class:"confirm-message" }, [
+                      self.$createElement('svg', null, [
+                        self.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+                      ]),
+                      self.$createElement('span', null, "合并后的单元格将只保留左/上单元格中的值，确定合并吗？")
+                    ]),
+                    "",
                     {
                       confirmButtonText: "确定",
                       cancelButtonText: "取消"
@@ -1632,7 +1637,7 @@ export default {
     margin-left: 20px;
     svg{
       transform: scaleX(-1);
-      margin-left:5px;
+      // margin-left:5px;
     }
   }
   .line {
@@ -1886,16 +1891,38 @@ td {
 }
 .confirm-message{
   text-align: left;
+  display: flex;
   svg{
     width: 24px;
     height: 24px;
     margin: 0 12px;
     vertical-align: middle;
+    flex-shrink: 0;
   }
   span{
     font-size: 14px;
     color: #333333;
     vertical-align: middle;      
+  }
+}
+.el-message-box{
+  .el-message-box__close{
+    font-size: 14px;
+  }
+  .el-message-box__content{
+    padding: 10px 20px 24px;
+  }
+  .el-message-box__btns{
+    text-align: center;
+  }
+  .el-button{
+    width: 88px;
+    height: 40px;
+    line-height: 40px;
+    box-sizing: border-box;
+    // background: #06AEA6;
+    border-radius: 2px;
+    padding: 0;
   }
 }
 </style>

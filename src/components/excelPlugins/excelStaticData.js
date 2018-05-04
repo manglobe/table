@@ -183,7 +183,8 @@ export const excelCharts = {
           // subtext: ' '
         },
         legend: {
-          bottom: 10,
+          padding: [0, 5],
+          bottom: 5,
           data: filtedData.column,
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
@@ -224,7 +225,8 @@ export const excelCharts = {
           // subtext: ' '
         },
         legend: {
-          bottom: 10,
+          padding: [0, 5],
+          bottom: 5,
           data: filtedData.column,
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
@@ -256,7 +258,7 @@ export const excelCharts = {
     name: '饼图',
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
-      console.log(dataSourse)
+      console.log(filtedData)
       return {
         title: {
           top: 10,
@@ -265,11 +267,13 @@ export const excelCharts = {
           // subtext: ' '
         },
         legend: {
-          bottom: 10,
-          data: filtedData.column
+          padding: [0, 5],
+          bottom: 5,
+          data: filtedData.row
         },
-        tooltip: {
-          trigger: 'axis'
+        tooltip : {
+          trigger: 'item',
+          formatter: "{b} : {c} ({d}%)"
         },
         // toolbox: {
         //     show : true,
@@ -281,12 +285,19 @@ export const excelCharts = {
         //         saveAsImage : {show: true}
         //     }
         // },
-
-        series: filtedData.data.map((ele, index) => ({
-          data: ele,
+        series: [{
+          data: filtedData.data[0].map((ele, index)=>({
+            value: ele,
+            name: filtedData.row[index]
+          })),
           type: 'pie',
-          name: filtedData.column[index]
-        }))
+          radius : '50%',
+        }]
+        // series: filtedData.data.map((ele, index) => ({
+        //   data: ele,
+        //   type: 'pie',
+        //   name: filtedData.column[index]
+        // }))
       };
     }
   },
@@ -324,6 +335,8 @@ export const excelCharts = {
         },
         legend: {
             // data:['蒸发量','降水量','平均温度']
+            padding: [0, 5],
+            bottom: 5,
             data: sortArr.map(ele=>ele.name),
         },
         xAxis: [

@@ -81,10 +81,7 @@
                 </div>
                 <div class="paragraph">
                     <span>5&nbsp;&nbsp;质量分析：</span>
-                    <span v-if="qualityPics.length == 0">暂无</span>
-                    <div v-else class="content1">
-                        <img :src="qualityPic" v-for="qualityPic in qualityPics" />
-                    </div>                 
+                    <span class="editors" v-html="resultDom"></span>                 
                 </div>
                 <div class="paragraph">
                     <span>6&nbsp;&nbsp;原因分析：</span>
@@ -132,6 +129,7 @@
                 spreadCharts: [],
                 qualityPics: [],
                 effectivePics: [],
+                resultDom: '',
                 reasonDOM: '',
                 improveDOM: '',
                 effectDOM: ''   
@@ -151,7 +149,8 @@
                        quotaTables: vm.indicatorsTable,
                        quotaResultAnalysisDOs: [vm.indicatorsResult],
                     } = res.result);
-                    vm.reasonDOM = vm.indicatorsResult.reasonAnalysis || '暂无';
+                    vm.resultDom = (vm.indicatorsResult.reasonAnalysis&&JSON.parse(vm.indicatorsResult.reasonAnalysis).resultAnalysis) || '暂无';
+                    vm.reasonDOM = (vm.indicatorsResult.reasonAnalysis&&JSON.parse(vm.indicatorsResult.reasonAnalysis).reasonAnalysis) || '暂无';
                     vm.improveDOM = vm.indicatorsResult.improvementMeasure || '暂无';
                     vm.effectDOM = vm.indicatorsResult.effectiveAnalysis || '暂无文字说明';
                     // if(vm.indicatorsResult){
@@ -159,7 +158,6 @@
                     //     vm.loadPics(qualityAnalysisFbzId, vm.qualityPics);
                     //     vm.loadPics(effectiveAnalysisFbzId, vm.effectivePics);
                     // };
-                    console.log(vm)
                     // vm.charts = vm.toBaseEChart(vm.indicatorsTable);
                     // vm.charts.map(data => {
                     //     vm.spreadCharts.push(data.spreadType.map(item => {
@@ -230,6 +228,15 @@
                         
                     } 
                 }               
+            }
+        },
+        mounted(){
+            if(/pdf=true/.test(location.href)){
+                let node = document.getElementById('preview')
+                parent.window.getPdf(node)
+                setTimeout(()=>{
+                    parent.window.pdfNext() 
+                },1000)
             }
         }
     }

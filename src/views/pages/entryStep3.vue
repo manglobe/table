@@ -11,7 +11,7 @@
 		    <el-button
 			  size="large"
 			  :disabled="loading"
-			  @click="gotoStep(3)">上一步</el-button>
+			  @click="gotoStep(2)">上一步</el-button>
 	    	<el-button
 	    	  type="primary" 
 	    	  size="large"
@@ -143,7 +143,10 @@
 				service.getOldResult(to.query.quotaId).then(res => {
 					next(vm => {
 						if(res.responseData){
-							vm.oldResult = handleObject.deepClone(res.responseData);
+							let midObj =  handleObject.deepClone(res.responseData)
+							midObj.resultAnalysis = JSON.parse(midObj.reasonAnalysis).resultAnalysis
+							midObj.reasonAnalysis = JSON.parse(midObj.reasonAnalysis).reasonAnalysis
+							vm.oldResult = midObj;
 							// if(vm.oldResult.qualityAnalysisFbzId != '') {
 							// 	vm.filelist1 = vm.oldResult.qualityAnalysisFbzId.split(',').map(data => {
 							// 		return {
@@ -175,13 +178,16 @@
 			},
 			save() {
 				let params = {
-					resultAnalysis: this.oldResult.resultAnalysis,
+					// resultAnalysis: this.oldResult.resultAnalysis,
 					effectiveAnalysis: this.oldResult.effectiveAnalysis,
                     // effectiveAnalysisFbzId: this.effectiveAnalysisFbzId.join(','),
 					improvementMeasure: this.oldResult.improvementMeasure,
 					// qualityAnalysisFbzId: this.qualityAnalysisFbzId.join(','),
 					quotaId: this.$route.query.quotaId,
-					reasonAnalysis: this.oldResult.reasonAnalysis,
+					reasonAnalysis: JSON.stringify({
+						reasonAnalysis: this.oldResult.reasonAnalysis,
+						resultAnalysis: this.oldResult.resultAnalysis,
+					})
 				}
 				this.loading = true;
 				if(this.$route.query.isEdit) {
@@ -297,5 +303,5 @@
 	    .el-upload-list--picture .el-upload-list__item-thumbnail	 {
 	    	width: 270px!important;
 	    }
-    }
+	}
 </style>

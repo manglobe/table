@@ -17,7 +17,7 @@
           </el-button>
         </div>	 
         <el-pagination
-          
+          v-if="indicatorsTable.length>1"
           ref = "pagonation"
           class="pagonation"
           :current-page="currentPage"
@@ -88,7 +88,6 @@ export default {
   },
   computed:{
     currentTableData(){
-      console.log(this.indicatorsTable[this.currentPage-1])
       return this.indicatorsTable[this.currentPage-1]
     }
   },
@@ -198,6 +197,7 @@ export default {
     },
     del (params){
       const index = this.currentPage-1
+      params= {...params,...{sort:index}, ...{ quotaId: this.$route.query.quotaId }}
       return this.$service.deleteTable(params).then(res=>{
         if (res.responseCode == "0") {
           this.indicatorsTable.splice(index,1);
