@@ -30,6 +30,9 @@ export default {
       } ,
       readonly:{
           type: Boolean,
+      },
+      finishedHandle:{
+        type: Function,
       }
   },
   data(){
@@ -66,14 +69,29 @@ export default {
 
   },
   mounted(){
+    console.log(4)
     setTimeout(()=>{
+      // 异步获取目标节点size
       this.chart = echarts.init(this.$refs.box)
       this.chart.setOption(this.options);
+      this.chart.on('finished' ,()=>{
+                    console.log(5)
+        this.finishedHandle&&this.finishedHandle()
+      })
+
     })
   },
-  updated(){
+  beforeUpdated(){
+    console.log(7)
       this.chart.clear();
       this.chart.setOption({...this.options,...{animation:false}});
+      this.chart.on('rendered' ,()=>{
+
+        this.finishedHandle&&this.finishedHandle()
+      })
+  },
+  updated(){
+    console.log(8)
   }
 }
 </script>

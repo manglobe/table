@@ -1,11 +1,11 @@
 import html2Canvas from 'html2canvas';
 import JsPDF from 'jspdf';
+import JSZip from 'jszip';
 
-
-      window.getPdf = function (node) {  
-        var title = this.htmlTitle  
+export default function (node) {  
+        // var title = this.htmlTitle  
         // html2Canvas(document.querySelector('#preview'), {  
-        html2Canvas(node, {  
+        return html2Canvas(node, {  
           allowTaint: true  
         }).then(function (canvas) {  
           let contentWidth = canvas.width  
@@ -29,7 +29,8 @@ import JsPDF from 'jspdf';
               }  
             }  
           }  
-          PDF.save(title + '.pdf')  
+          let blob = PDF.output('blob')
+          return blob
         }  
         )  
       }  

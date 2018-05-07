@@ -17,7 +17,6 @@ import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 import {mapActions} from 'vuex';
 import '../static/svg/index.js';
-import './pdf';
 Vue.config.productionTip = false
 Vue.use(EleUI);
 

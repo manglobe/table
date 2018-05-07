@@ -87,6 +87,7 @@
               :optionsSourse ="item"
               :changeHandle ="v=>chartControllerHandle(v,index)"
               :chartsUnit = "excelCharts"
+              :finishedHandle = "chartsFinishedHandle"
             >
             </Charts>
         </div>
@@ -133,6 +134,9 @@ export default {
       type: Function,
     },
     delete:{
+      type: Function,
+    },
+    allChartsFinished:{ // 全图表加载完成事件
       type: Function,
     }
   },
@@ -1386,6 +1390,14 @@ export default {
     redo(){
       // console.log(this.hot1.isRedoAvailable())
       this.hot1.redo()
+    },
+    chartsFinishedHandle(){
+      this[Symbol.for('finishedCharts')] = this[Symbol.for('finishedCharts')] || 0;
+      this[Symbol.for('finishedCharts')] ++
+      if(this[Symbol.for('finishedCharts')] === this.chartOptionsSourse.length){
+        this.allChartsFinished();
+        this[Symbol.for('finishedCharts')] = 0
+      }
     }
   },
   mounted() {
@@ -1550,6 +1562,9 @@ export default {
     if(this.editorAble){
       let Canvas = this.createCanvas(webExcel);
       this.canvas = Canvas;
+    }else if(this.chartOptionsSourse.length.length === 0){
+      this.allChartsFinished();
+      this[Symbol.for('finishedCharts')] = 0
     }
   },
 };

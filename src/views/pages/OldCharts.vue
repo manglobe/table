@@ -41,42 +41,15 @@
                 <div class="paragraph">
                     <span>4&nbsp;&nbsp;检测项目分析报告：</span>
                     <div 
-                        style="padding:20px 0"    
-                        v-for='(indicatorTable, index) in indicatorsTable'>
+                    style="padding:20px 0"    
+                    v-for='(indicatorTable, index) in indicatorsTable'                       
+                    :key="index">
                         <web-excel 
                         :editorAble="false"
                         :key="index"
                         :prop-table="indicatorTable"
-                        :id="index"></web-excel>   
-                        <!-- <div class="shen-table pdf-pagination">
-                            <div class="table-title">{{indicatorTable.tableName}}</div>
-                            <div class="table-body-wrapper">                              
-                                <table class="table-body" cellspacing="0" cellpadding="0">
-                                    <thead>
-                                        <tr>
-                                            <th v-for="tableHeader in indicatorTable.columns">{{tableHeader.columnName}}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="tableRow in indicatorTable.rows">
-                                            <td v-for="cellList in tableRow.cellList">{{cellList.cellValue}}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div > -->
-                        <!-- <div  v-if="indicatorTable.isSelected == 'y'"> -->
-                            <!-- <div class="echarts pdf-pagination" v-if="indicatorTable.imageType != '0'"> -->
-                                <!-- <EchartsBox :option="charts[index]"></EchartsBox> -->
-                            <!-- </div> -->
-                            <!-- <div
-                              class="echarts pdf-pagination" 
-                              v-for='(chartOption, index) in indicatorTable.imgData?JSON.parse(indicatorTable.imgData):[]'
-                              :key='index'>
-                                <EchartsBox :optionsSourse="chartOption"></EchartsBox>
-                            </div>
-                        </div>                             -->
+                        :id="index"
+                        :allChartsFinished = "allChartsFinished"></web-excel>   
                     </div>                   
                 </div>
                 <div class="paragraph">
@@ -117,6 +90,14 @@
     import webExcel from "@/components/webExcel";
 
     export default {
+        props:{
+            previewData:{
+                type: [Object, Boolean]
+            },
+            updatedCallBack:{
+                type: Function
+            }
+        },
         components: {
             IEcharts, EchartsBox,webExcel
         },
@@ -141,80 +122,39 @@
                 return `${this.indicatorsInfo.molecular} / ${this.indicatorsInfo.denominator} * ${this.indicatorsInfo.percentage} ${this.indicatorsInfo.formulaUnits}`
             },
         },
+        watch:{
+            previewData:function(next, prev){
+                if(next){
+                    ({
+                       quotaBaseInfoDOs: [this.indicatorsInfo],
+                       quotaTables: this.indicatorsTable,
+                       quotaResultAnalysisDOs: [this.indicatorsResult],
+                    } = next);
+                    // this.resultDom = (this.indicatorsResult&&this.indicatorsResult.reasonAnalysis&&JSON.parse(this.indicatorsResult.reasonAnalysis).resultAnalysis) || '暂无';
+                    // this.reasonDOM = (this.indicatorsResult&&this.indicatorsResult.reasonAnalysis&&JSON.parse(this.indicatorsResult.reasonAnalysis).reasonAnalysis) || '暂无';
+                    this.improveDOM =this.indicatorsResult&&this.indicatorsResult.improvementMeasure || '暂无';
+                    this.effectDOM = this.indicatorsResult&&this.indicatorsResult.effectiveAnalysis || '暂无文字说明';
+                }
+            }
+        },
         beforeRouteEnter(to, from, next) {
-            service.previewData(to.query.quotaId).then(res => {
+            service.previewData({quotaIds:to.query.quotaId}).then(res => {
                 next(vm => {
                     ({
                        quotaBaseInfoDOs: [vm.indicatorsInfo],
                        quotaTables: vm.indicatorsTable,
                        quotaResultAnalysisDOs: [vm.indicatorsResult],
-                    } = res.result);
+                    } = res.result[0]);
                     vm.resultDom = (vm.indicatorsResult.reasonAnalysis&&JSON.parse(vm.indicatorsResult.reasonAnalysis).resultAnalysis) || '暂无';
                     vm.reasonDOM = (vm.indicatorsResult.reasonAnalysis&&JSON.parse(vm.indicatorsResult.reasonAnalysis).reasonAnalysis) || '暂无';
                     vm.improveDOM = vm.indicatorsResult.improvementMeasure || '暂无';
                     vm.effectDOM = vm.indicatorsResult.effectiveAnalysis || '暂无文字说明';
-                    // if(vm.indicatorsResult){
-                    //     let { qualityAnalysisFbzId, effectiveAnalysisFbzId } = vm.indicatorsResult
-                    //     vm.loadPics(qualityAnalysisFbzId, vm.qualityPics);
-                    //     vm.loadPics(effectiveAnalysisFbzId, vm.effectivePics);
-                    // };
-                    // vm.charts = vm.toBaseEChart(vm.indicatorsTable);
-                    // vm.charts.map(data => {
-                    //     vm.spreadCharts.push(data.spreadType.map(item => {
-                    //         return vm.toSpreadEChart(data, item);
-                    //     }))                       
-                    // });
                 })
             })
         },
         methods: {
-            // loadPics(str, pics) {
-            //     if(!str){
-            //         return;
-            //     };
-            //     let arr = str.split(',');
-            //     for(let id of arr) {
-            //         pics.push(`/getphotobyte?fileId=${id}`);
-            //     }               
-            // },           
-            // htmlToCanvas() {
-            //     // let a = document.getElementsByTagName('canvas')[0];
-            //     // let b = document.getElementsByTagName('canvas')[1];
-            //     // a.style.background = '#fff';
-            //     // b.style.background = '#fff';
-            //     // let pageData = a.toDataURL('PNG', 1);
-            //     // let pageData1 = b.toDataURL('PNG', 1);
-            //     let pdf = new jspdf('', 'pt', 'a4');
-            //     // pdf.addImage(pageData, 'PNG', 0,0,350,280);
-            //     // pdf.addImage(pageData1, 'JPEG', 0,280,350,280);
-            //     // pdf.save('test.pdf');
-            //     html2canvas(document.getElementById('preview'), {
-            //         onrendered: function(canvas) {
-            //             // document.body.appendChild(canvas);
-            //             let canvasWidth = canvas.width;
-            //             let canvasHeight = canvas.height;
-            //             console.log(canvasWidth, canvasHeight)
-            //             let pageData2 = canvas.toDataURL('image/jpeg', 1);
-            //             pdf.addImage(pageData2, 'JPEG', 0,0,595.28,592.28/canvasWidth*canvasHeight);
-            //             // pdf.addImage(pageData, 'JPEG', 0,0,595.28,595.28/canvas.width*canvas.height);
-            //             pdf.save('test.pdf');
-            //         }
-            //     });
-            // },
             htmlToCanvas() {
-                // let printStr = `<html><head><meta http-equiv='content-type' content='text/html; charset=utf-8'></head><body>`;
-                // let content = '';
-                // let str = document.getElementsByClassName('echarts')[0].innerHTML;
-                // content = content + str;
-                // str = document.getElementsByClassName('echarts')[1].innerHTML;
-                // content = content + str;
-                // printStr = printStr + content + "</body></html>";
-                // let pwin = window.open("Print.htm", "print");
-                // pwin.document.write(printStr);
-                // pwin.document.close();
                 this.pagination();
-                // let a = document.getElementsByClassName('paragraph')[1];
-                // a.setAttribute('class', 'paragraph pagination');
                 window.print();
             },
             pagination() {
@@ -225,18 +165,28 @@
                    if((a4 - (pdfPaginations[i].offsetTop - presentTop)) <= pdfPaginations[i].offsetHeight){
                         presentTop = pdfPaginations[i].offsetTop;
                         pdfPaginations[i-1].className = `${pdfPaginations[i-1].className} pagination`;
-                        
                     } 
                 }               
+            },
+            allChartsFinished(){
+                console.log(1)
+                this[Symbol.for('allChartsFinished')] = this[Symbol.for('allChartsFinished')] || 0;
+                this[Symbol.for('allChartsFinished')] ++
+                if(this[Symbol.for('allChartsFinished')] === this.indicatorsTable.length){
+                    if(this.previewData){
+                        this.updatedCallBack(document.getElementById('preview'))
+                    }
+                    this[Symbol.for('allChartsFinished')] = 0
+                }
             }
         },
-        mounted(){
-            if(/pdf=true/.test(location.href)){
-                let node = document.getElementById('preview')
-                parent.window.getPdf(node)
-                setTimeout(()=>{
-                    parent.window.pdfNext() 
-                },1000)
+        updated(){
+            console.log(0)
+            console.log(this.previewData&& this.indicatorsTable.length === 0)
+            if(this.previewData&& this.indicatorsTable.length === 0){
+                this.$nextTick(function () {
+                    this.updatedCallBack(document.getElementById('preview'))
+                })
             }
         }
     }

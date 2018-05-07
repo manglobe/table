@@ -1,6 +1,9 @@
 <template>
 	<div class="indicator-lib">
-    <iframe src="" frameborder="0" class="pdf-iframe" ref="iframe"></iframe>
+    <!-- <iframe src="" frameborder="0" class="pdf-iframe" ref="iframe"></iframe> -->
+    <div class="pdf-preview">
+      <Preview :previewData = "previewData" :updatedCallBack="addPdf" />
+    </div>
 		<section class="form-wrap">
 
 			<div class="handle-wrap">
@@ -149,8 +152,15 @@
 
 <script>
 import { mapState } from "vuex";
-
+import Preview from './OldCharts.vue';
+import service from '@/service/service';
+import getPdf from '@/util/pdf';
+import JSZip from 'jszip';
+import { Loading } from 'element-ui';
 export default {
+  components: {
+      Preview
+    },
   data() {
     return {
       tableData: [],
@@ -166,7 +176,9 @@ export default {
       totalPages: 0,
       pageSize: 10,
       curPage: 1,
-      delId: ""
+      delId: "",
+      previewData: false,
+      previewDatas: false,
     };
   },
   computed: {
@@ -251,22 +263,45 @@ export default {
     handleSelectionChange(selection){
       this.selectedUrl = selection.map(ele=>ele.quotaId)
     },
+    async addPdf(node){
+      let blob = await getPdf(node);
+      const _this = this;
+      const zip = this.zip;
+      zip.file(`${_this[Symbol.for('pdfIndex')]}.pdf`,blob);
+      _this[Symbol.for('pdfIndex')]++
+      this.previewData = this.previewDatas.next().value;
+      if(!this.previewData){
+        zip.generateAsync({type:"blob"})
+        .then(function (blob) {
+            // 回收变量
+            _this[Symbol.for('pdfIndex')] = undefined;
+            // 下载blob
+            var link = document.createElement('a');
+              link.href = window.URL.createObjectURL(blob);
+              link.download = 'pdf';
+              link.click();
+              window.URL.revokeObjectURL(link.href);
+            // window.open(window.URL.createObjectURL(blob))
+            _this.loadingInstance.close();
+        });
+      }
+    },
     pdf(){
-      // this.$refs.iframe.src= `#/preview?quotaId=${this.selectedUrl[0]}&cacheId=${this.selectedUrl.join('&')}`
-      // document.getElementsByTagName('iframe')[0].contentWindow.document.getElementById('preview')
-      let index = 0
-      const downPdf = id =>{
-        this.$refs.iframe.src= `#/preview?quotaId=${this.selectedUrl[0]}&pdf=true`
-        if(index>=1) {
-          this.$refs.iframe.contentWindow.location.reload(true);
+      this.loadingInstance = Loading.service({ fullscreen: true, text: 'pdf生成中……' });
+      service.previewData({quotaIds:this.selectedUrl}).then(res=>{
+        function* previewDatas(){
+          const { result } = res
+          for (let i = 0; i<result.length; i++) {
+             yield result[i]
+          }
+          return false
         }
-          index++
-      }
-      downPdf()
-      window.pdfNext= ()=>{
-        console.log(this.selectedUrl[index])
-        this.selectedUrl[index]&&downPdf(this.selectedUrl[index])
-      }
+        this.previewDatas= previewDatas();
+        this.previewData= this.previewDatas.next().value;
+        this.zip = new JSZip()
+        this.pdfIndex = 1;
+        this[Symbol.for('pdfIndex')] = 1;
+      })
     }
   }
 };
@@ -379,16 +414,18 @@ export default {
   }
 }
 
-.pdf-iframe{
+.pdf-preview{
   position: fixed;
-  // opacity: 0;
+  opacity: 0;
   left: 0;
   right: 0;
   top: 0;
-  bottom: 0;
-  overflow: scroll;
+  // bottom: 0;
   display: block;
-  // z-index: -999;
+  z-index: -9999;
   width: 100%;
+  // overflow: scroll;
+  overflow: hidden;
+  pointer-events: none;
 }
 </style>

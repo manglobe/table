@@ -33,5 +33,5 @@
  	
  	indicatorsAddr: '/quality/quotaBaseInfo/list?',
  	deleteIndicatorAddr: '/quality/quotaBaseInfo/delete?quotaId=',
- 	previewAddr: '/quality/pdf/view?quotaIds=',
+ 	previewAddr: '/quality/pdf/view?',
  }
