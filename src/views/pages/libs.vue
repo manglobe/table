@@ -264,12 +264,14 @@ export default {
       this.selectedUrl = selection.map(ele=>ele.quotaId)
     },
     async addPdf(node){
+      console.log('---addPdf---')
       let blob = await getPdf(node);
       const _this = this;
       const zip = this.zip;
       zip.file(`${_this[Symbol.for('pdfIndex')]}.pdf`,blob);
       _this[Symbol.for('pdfIndex')]++
       this.previewData = this.previewDatas.next().value;
+      console.log('this.previewData： ',this.previewData)
       if(!this.previewData){
         zip.generateAsync({type:"blob"})
         .then(function (blob) {

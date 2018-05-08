@@ -541,7 +541,6 @@ export default {
             ? JSON.parse (newVal.tableData)
             : newVal.tableData
       }}
-      console.log(newVal)
       this.hot1.updateSettings(
         {data:this.hotSettings.data}
       )
@@ -1395,12 +1394,12 @@ export default {
       this[Symbol.for('finishedCharts')] = this[Symbol.for('finishedCharts')] || 0;
       this[Symbol.for('finishedCharts')] ++
       if(this[Symbol.for('finishedCharts')] === this.chartOptionsSourse.length){
-        this.allChartsFinished();
+        this.allChartsFinished&&this.allChartsFinished();
         this[Symbol.for('finishedCharts')] = 0
       }
     }
   },
-  mounted() {
+  mounted() {    
     var self = this;
     var webExcel = document.getElementById(`${this.idName}`);
     self.hot1 = new Handsontable(webExcel, self.hotSettings);
@@ -1562,11 +1561,17 @@ export default {
     if(this.editorAble){
       let Canvas = this.createCanvas(webExcel);
       this.canvas = Canvas;
-    }else if(this.chartOptionsSourse.length.length === 0){
+    }else if(this.chartOptionsSourse.length === 0){
       this.allChartsFinished();
       this[Symbol.for('finishedCharts')] = 0
     }
   },
+  updated(){
+    if(this.chartOptionsSourse.length === 0){
+      this.allChartsFinished&&this.allChartsFinished();
+      this[Symbol.for('finishedCharts')] = 0
+    }
+  }
 };
 </script>
 

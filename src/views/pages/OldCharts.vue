@@ -130,8 +130,8 @@
                        quotaTables: this.indicatorsTable,
                        quotaResultAnalysisDOs: [this.indicatorsResult],
                     } = next);
-                    // this.resultDom = (this.indicatorsResult&&this.indicatorsResult.reasonAnalysis&&JSON.parse(this.indicatorsResult.reasonAnalysis).resultAnalysis) || '暂无';
-                    // this.reasonDOM = (this.indicatorsResult&&this.indicatorsResult.reasonAnalysis&&JSON.parse(this.indicatorsResult.reasonAnalysis).reasonAnalysis) || '暂无';
+                    this.resultDom = (this.indicatorsResult&&this.indicatorsResult.reasonAnalysis&&JSON.parse(this.indicatorsResult.reasonAnalysis).resultAnalysis) || '暂无';
+                    this.reasonDOM = (this.indicatorsResult&&this.indicatorsResult.reasonAnalysis&&JSON.parse(this.indicatorsResult.reasonAnalysis).reasonAnalysis) || '暂无';
                     this.improveDOM =this.indicatorsResult&&this.indicatorsResult.improvementMeasure || '暂无';
                     this.effectDOM = this.indicatorsResult&&this.indicatorsResult.effectiveAnalysis || '暂无文字说明';
                 }
@@ -169,7 +169,6 @@
                 }               
             },
             allChartsFinished(){
-                console.log(1)
                 this[Symbol.for('allChartsFinished')] = this[Symbol.for('allChartsFinished')] || 0;
                 this[Symbol.for('allChartsFinished')] ++
                 if(this[Symbol.for('allChartsFinished')] === this.indicatorsTable.length){
@@ -181,12 +180,8 @@
             }
         },
         updated(){
-            console.log(0)
-            console.log(this.previewData&& this.indicatorsTable.length === 0)
             if(this.previewData&& this.indicatorsTable.length === 0){
-                this.$nextTick(function () {
-                    this.updatedCallBack(document.getElementById('preview'))
-                })
+                this.updatedCallBack(document.getElementById('preview'))
             }
         }
     }
