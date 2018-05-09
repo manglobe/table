@@ -60,9 +60,15 @@ export default {
   },
   computed:{
     options:function(){
-       return this.chartsUnit[this.optionsSourse.type].func(
-        this.optionsSourse
-      )
+      let optionObj = {}
+      try {
+        optionObj = this.chartsUnit[this.optionsSourse.type].func(
+          this.optionsSourse
+        )
+      } catch (error) {
+        console.error(error)
+      }
+      return optionObj
     }
   },
   method:{

@@ -1,8 +1,8 @@
 <template>
 	<div>
 	    <div class="steps">
-			<span class="step stepActive">1、定义指标</span>
-			<span class="step" @click="gotoStep(2)"><span class="arrow arrowActive"></span>2、新增图表</span>
+			<span class="step stepActive" :class="{'stepError': hasError}">1、定义指标</span>
+			<span class="step" @click="gotoStep(2)"><span class="arrow arrowActive" :class="{'stepError': hasError}"></span>2、新增图表</span>
 			<span class="step" @click="gotoStep(3)"><span class="arrow"></span>3、分析结果</span>
 			<!-- <span class="step" @click="gotoStep(3)"><span class="arrow"></span>3、生成报表</span> -->
 			<!-- <span class="step" @click="gotoStep(4)"><span class="arrow"></span>4、分析结果</span> -->
@@ -252,6 +252,9 @@ export default {
     ...mapState(["floors", "depts", "types"]),
     oldBaseInfo() {
       return this.$store.state.oldBaseInfo;
+    },
+    hasError(){
+      return !/false/.test(JSON.stringify(this.validate))
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -353,6 +356,13 @@ export default {
 </script>
 
 <style rel="stylesheet/scss" lang="scss">
+.step.stepError{
+  background-color: #FF897D;
+}
+.steps .step .arrow.stepError:before {
+  border-left-color: #FF897D;
+  
+}
 .entry-step-1 {
   top: 90px;
   bottom: 0;

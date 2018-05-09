@@ -1,5 +1,7 @@
 <template>
-    <section :class="{'excel-wrap': editorAble, 'excel-display': !editorAble}" ref="excelWrap" >
+    <section :class="{'excel-wrap': editorAble, 'excel-display': !editorAble}"
+     ref="excelWrap" 
+     >
       <div class="flex-wrap">
         <div v-if="editorAble" class="btn-handle-2">
           <!-- <el-button 
@@ -181,8 +183,8 @@ export default {
         comments: true,
         colHeaders: true,
         rowHeaders: true,
-        minCols: 10,
-        minRows: 8,
+        minCols: 1,
+        minRows: 1,
         maxCols: 15,
         colWidths: this.editorAble?120:64,
         rowHeaderWidth: this.editorAble?52:40,
@@ -304,7 +306,16 @@ export default {
                       ) || 0
                     );
                   });
-                newVal = eval(expression);
+                  let isNum = false;
+                  if(/[\d\.](?!%)/.test(expression)){
+                    console.log('isNum')
+                    isNum =true 
+                  }
+                  expression = expression.replace(/([\d\.]+)%/g,(match,$1)=>{
+                    return $1/100
+                  })
+                  console.log(expression)
+                newVal = isNum?eval(expression):eval(expression)*100+'%';
               } catch (error) {
                 newVal = "#VALUE!";
                 if (error === "choose self") {
@@ -525,6 +536,16 @@ export default {
 
         beforeUndo(action){
           console.log(action)
+        },
+        afterCreateCol(index, amount, source){
+          self.hot1.updateSettings({
+            colWidths:  120*10/self.hot1.countCols()
+          })
+        },
+        afterRemoveCol(index, amount){
+          self.hot1.updateSettings({
+            colWidths:  120*10/self.hot1.countCols()
+          })
         }
 
       }
@@ -744,18 +765,19 @@ export default {
         [c,c2]=[c2,c]
       }
 
-      
       const _this =this;
+      const settings = this.hot1.getSettings();
+
       //  _this.hot1.getPlugin('autoRowSize').recalculateAllRowsHeight()
-      const rowsHeight = _this.hot1.getPlugin('autoRowSize').heights.map(ele=>ele<_this.hotSettings.rowHeights?_this.hotSettings.rowHeights:ele)
+      const rowsHeight = _this.hot1.getPlugin('autoRowSize').heights.map(ele=>ele<settings.rowHeights?settings.rowHeights:ele)
       if(r === 'full'){
         _this[c].push({
             render(ctx, color) {
           ctx.strokeStyle = color;
           ctx.strokeRect(
-            _this.hotSettings.rowHeaderWidth,
-            _this.hotSettings.columnHeaderHeight,
-            _this.$refs.excel.clientWidth-_this.hotSettings.rowHeaderWidth,
+            settings.rowHeaderWidth,
+            settings.columnHeaderHeight,
+            _this.$refs.excel.clientWidth-settings.rowHeaderWidth,
             eval(rowsHeight.join('+')) 
           );
         }
@@ -766,9 +788,9 @@ export default {
         render(ctx, color) {
           ctx.strokeStyle = color;
           ctx.strokeRect(
-            _this.hotSettings.rowHeaderWidth + c *  _this.hotSettings.colWidths,
-            _this.hotSettings.columnHeaderHeight + (eval(rowsHeight.slice(0,r).join('+'))||0),
-            (c2 - c + 1) * _this.hotSettings.colWidths ,
+            settings.rowHeaderWidth + c *  settings.colWidths,
+            settings.columnHeaderHeight + (eval(rowsHeight.slice(0,r).join('+'))||0),
+            (c2 - c + 1) * settings.colWidths ,
             eval(rowsHeight.slice(r,r2+1).join('+'))
           );
         }
@@ -899,10 +921,10 @@ export default {
       const row = Input.row;
       const col = Input.col;
       const rowsHeight = this.hot1.getPlugin('autoRowSize').heights.map(ele=>ele<this.hotSettings.rowHeights?this.hotSettings.rowHeights:ele)
-
-      Input.style.top = this.hotSettings.columnHeaderHeight +  (eval(rowsHeight.slice(0,row).join('+'))||0) + "px";
-      Input.style.left = this.hotSettings.rowHeaderWidth + col * this.hotSettings.colWidths + "px";
-      Input.style.width = this.hotSettings.colWidths + 2 + "px";
+      const settings = this.hot1.getSettings();
+      Input.style.top = settings.columnHeaderHeight +  (eval(rowsHeight.slice(0,row).join('+'))||0) + "px";
+      Input.style.left = settings.rowHeaderWidth + col * settings.colWidths + "px";
+      Input.style.width = settings.colWidths + 2 + "px";
       Input.style.height = rowsHeight[row]+ 'px';
       InputDisplay.style.top = Input.style.top
       InputDisplay.style.left = Input.style.left
@@ -1379,6 +1401,7 @@ export default {
         if (res.responseCode == "0") {
           this.$message.success("删除成功");
           this.$emit("whetherSave", "del", this.id);
+          this.visible = false
         }
       })
     },
@@ -1445,6 +1468,8 @@ export default {
               return "合并单元格";
             },
             callback(key, options) {
+              console.log(key)
+              console.log(options)
               let rangeArr = [
                 options[0].start.row,
                 options[0].start.col,
@@ -1454,6 +1479,27 @@ export default {
               if (!this[Symbol.for("useMerge")]) {
                 this.getPlugin("MergeCells").unmerge(...rangeArr);
                 return;
+              }
+
+              const mergedCellsCollection = this.getPlugin(
+                "MergeCells"
+              ).mergedCellsCollection
+              const isOverlapping = mergedCellsCollection.isOverlapping({
+                row:options[0].start.row,
+                col:options[0].start.col,
+                rowspan: options[0].end.row -  options[0].start.row + 1,
+                colspan: options[0].end.col -  options[0].start.col + 1,
+              })
+              const range= {
+                from: options[0].start,
+                to: options[0].end
+              }
+
+              if(isOverlapping){
+                const ranges = mergedCellsCollection.getWithinRange(range)
+                ranges.forEach(ele=>{
+                  mergedCellsCollection.remove(ele.row, ele.col)
+                })
               }
 
               let rangeData = this.getData(...rangeArr);
@@ -1565,12 +1611,22 @@ export default {
       this.allChartsFinished();
       this[Symbol.for('finishedCharts')] = 0
     }
+    this[Symbol.for('keydownSave')] = function(e){
+      if(e.ctrlKey&&e.keyCode===83){
+        e.preventDefault();
+        self.saveTable()
+      }
+    }
+    window.addEventListener('keydown', this[Symbol.for('keydownSave')])
   },
   updated(){
     if(this.chartOptionsSourse.length === 0){
       this.allChartsFinished&&this.allChartsFinished();
       this[Symbol.for('finishedCharts')] = 0
     }
+  },
+  destroyed(){
+    window.removeEventListener('keydown',this[Symbol.for('keydownSave')])
   }
 };
 </script>

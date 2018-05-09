@@ -140,6 +140,14 @@ export default {
       }
     },
     addTable() {
+      let mark = this.args.some(data => {
+        return data === true;
+      });
+      if(mark){
+        this.unSaveAlert()
+        return false
+      }
+      
       this.indicatorsTable.push({
         tableData: (function(rows, columns) {
           const result = [];
@@ -151,12 +159,13 @@ export default {
             result.push(row);
           }
           return result;
-        })(8, 10),
+        })(10, 10),
         cellInfo: true,
         tableId: "",
         new: true,
         tableName: "表格名称"
       });
+      this.changePage(this.indicatorsTable.length)      
     },
     changePage(number){
       let mark = this.args.some(data => {
@@ -205,7 +214,7 @@ export default {
         }
       })
    },
-   checkSaveHandle (){
+   checkSaveHandle(){
     if(this.indicatorsTable.length>1){
       const _this = this
       this.$refs.pagonation.$el.addEventListener('click',function(e){
@@ -218,8 +227,8 @@ export default {
             _this.unSaveAlert()
           }
         }, true)
+      }
     }
-   }
   },
   mounted(){
     this.checkSaveHandle()

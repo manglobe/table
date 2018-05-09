@@ -34,31 +34,14 @@ export const excelFunctions = {
       return newStr
     }
   },
-  // SUBTRACTION: {
-  //   name: '求差',
-  //   func(valueStr) {
-  //     let newStr = valueStr.replace(/subtraction/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
-  //       return `(${disposeRange(match).join('+')})`
-  //     }).replace(/,/g, '-');
-  //     return newStr
-  //   }
-  // },
-  // QUOTIENT: {
-  //   name: '求商',
-  //   func(valueStr) {
-  //     let newStr = valueStr.replace(/quotient/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
-  //       return `(${disposeRange(match).join('+')})`
-  //     }).replace(/,/g, '/');
-  //     return newStr
-  //   }
-  // },
   AVERAGE: {
     name: '求平均数',
     func(valueStr) {
-      let newStr = valueStr.replace(/AVERAGE/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
-        return `(${disposeRange(match).join('+')})`
-      }).replace(/,/g, '+');
-      return `(${newStr}/${newStr.match(/[a-z]+\d+/gi).length})`
+      let midStr = valueStr.replace(/AVERAGE/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
+        return `(${disposeRange(match).join(',')})`
+      });
+      let newStr = midStr.replace(/,/g, '+');
+      return `(${newStr}/${midStr.split(',').length})`
     }
   },
 }
@@ -207,7 +190,7 @@ export const excelCharts = {
         series: filtedData.data.map((ele, index) => ({
           data: ele,
           type: 'line',
-          name: filtedData.column[index]
+          name: filtedData.column[index].substr(0,19)
         }))
       }
     }
@@ -249,7 +232,7 @@ export const excelCharts = {
         series: filtedData.data.map((ele, index) => ({
           data: ele,
           type: 'bar',
-          name: filtedData.column[index]
+          name: filtedData.column[index].substr(0,19)
         }))
       };
     }
@@ -269,7 +252,10 @@ export const excelCharts = {
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data: filtedData.row
+          data: filtedData.row,
+          formatter: function (name) {
+            return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
+          },
         },
         tooltip : {
           trigger: 'item',
@@ -288,7 +274,7 @@ export const excelCharts = {
         series: [{
           data: filtedData.data[0].map((ele, index)=>({
             value: ele,
-            name: filtedData.row[index]
+            name: filtedData.row[index].substr(0,19)
           })),
           type: 'pie',
           radius : '50%',
@@ -338,6 +324,9 @@ export const excelCharts = {
             padding: [0, 5],
             bottom: 5,
             data: sortArr.map(ele=>ele.name),
+            formatter: function (name) {
+              return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
+            },
         },
         xAxis: [
             {
