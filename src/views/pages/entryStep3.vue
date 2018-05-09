@@ -18,7 +18,7 @@
 	    </div>
 	    <div class="entry-step entry-step-4">
 			<el-upload
-				action='/api/file/upload'
+				action='/file/upload'
 				:headers='headers'
 				:before-upload='beforeUpload'
 				:on-success='uploadedCallback'
@@ -136,7 +136,6 @@
 			// },
 		},
 		beforeRouteEnter(to, from, next) {
-			console.log(to)
 			if(to.query.isEdit) {
 				service.getOldResult(to.query.quotaId).then(res => {
 					next(vm => {
@@ -219,10 +218,7 @@
 					return;
 				}
 				this.addImgRange = this.$refs[this.cacheEditorRefName].quill.getSelection()
-				console.log(this.$refs)
-				console.log(this.cacheEditorRefName)
 				this.$refs[this.cacheEditorRefName].quill.insertEmbed(this.addImgRange != null?this.addImgRange.index:0, 'image', `${process.env.NODE_ENV === 'production' ? '' : '/api'}/getphotobyte?fileId=${res.results.fileId}`)
-
 				this.$refs[this.cacheEditorRefName].quill.setSelection(this.addImgRange != null?this.addImgRange.index+1:1,1)
 			},
 			beforeUpload(file) {
@@ -251,7 +247,6 @@
 					fileInput.$el.click()
 				}
 			}
-			console.log(_this.$refs)
 			_this.$refs.editor.quill.getModule('toolbar').addHandler('image', imgHandler('editor'))
 			_this.$refs.editor2.quill.getModule('toolbar').addHandler('image', imgHandler('editor2'))
 			_this.$refs.editor3.quill.getModule('toolbar').addHandler('image', imgHandler('editor3'))

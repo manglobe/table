@@ -15,7 +15,7 @@
               class="el-icon-plus"></i>
             新增表格
           </el-button>
-        </div>	 
+        </div>
         <el-pagination
           v-if="indicatorsTable.length>1"
           ref = "pagonation"
@@ -192,7 +192,6 @@ export default {
       })
     },
     vif(index){
-      console.log(index, this.currentPage -1)
       return index === this.currentPage -1
     },
     del (params){
@@ -205,21 +204,28 @@ export default {
           return res
         }
       })
+   },
+   checkSaveHandle (){
+    if(this.indicatorsTable.length>1){
+      const _this = this
+      this.$refs.pagonation.$el.addEventListener('click',function(e){
+        let mark = _this.args.some(data => {
+          return data === true;
+          });
+          if(mark){
+            e.stopPropagation()
+            // _this.dialogVisible = true;
+            _this.unSaveAlert()
+          }
+        }, true)
+    }
    }
   },
   mounted(){
-    const _this = this
-    this.$refs.pagonation.$el.addEventListener('click',function(e){
-      
-      let mark = _this.args.some(data => {
-        return data === true;
-        });
-        if(mark){
-          e.stopPropagation()
-          // _this.dialogVisible = true;
-          _this.unSaveAlert()
-        }
-      }, true)
+    this.checkSaveHandle()
+  },
+  updated(){
+    this.checkSaveHandle()
   }
 };
 </script>

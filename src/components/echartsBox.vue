@@ -74,14 +74,12 @@ export default {
       this.chart = echarts.init(this.$refs.box)
       this.chart.setOption(this.options);
       this.chart.on('finished' ,()=>{
-        console.log(5)
         this.finishedHandle&&this.finishedHandle()
       })
 
     })
   },
   beforeUpdate(){
-    console.log(66)
     // this.chart.clear();
     this.chart.setOption({...this.options,...{animation:false}});
   },
