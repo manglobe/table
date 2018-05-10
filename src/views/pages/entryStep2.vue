@@ -217,7 +217,7 @@ export default {
    checkSaveHandle(){
     if(this.indicatorsTable.length>1){
       const _this = this
-      this.$refs.pagonation.$el.addEventListener('click',function(e){
+      const checkClickHandle = function(e){
         let mark = _this.args.some(data => {
           return data === true;
           });
@@ -226,7 +226,8 @@ export default {
             // _this.dialogVisible = true;
             _this.unSaveAlert()
           }
-        }, true)
+        }
+      this.$refs.pagonation.$el.addEventListener('click', checkClickHandle , true)
       }
     }
   },

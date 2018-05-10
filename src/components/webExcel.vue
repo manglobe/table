@@ -63,7 +63,7 @@
         </div>
 
         <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
-        <div class="charts">
+        <div class="charts" :class="{'display-block': !editorAble}">
           <div 
           class="chart-wrap" 
           v-for="(item, index) in chartOptionsSourse" 
@@ -78,6 +78,7 @@
                 type="text" 
                 :value="item.title" 
                 autofocus
+                maxlength="20"
                 @keydown="e=>titleEditorKeydownHandle(e,index)"
                 @input="chartTitleEditorCacheValue= $event.target.value"
               />
@@ -391,6 +392,7 @@ export default {
         },
 
         afterChange: function(changes, sourse) {
+          console.log(changes, sourse)
           if (sourse !== "funcRender") {
             self.funcRender();
           }
@@ -406,12 +408,15 @@ export default {
           const mergedArr = self.hot1.getPlugin("MergeCells")
             .mergedCellsCollection.mergedCells;
           self.pasteMergeCache = [];
+          // this.getPlugin(
+          //       "MergeCells"
+          //     ).mergedCellsCollection.getWithinRange({})
           mergedArr.filter(ele => {
             if (
               ele.row >= coords[0].startRow &&
               ele.col >= coords[0].startCol &&
-              coords[0].startRow + ele.rowspan - 1 <= coords[0].endRow &&
-              coords[0].startCol + ele.colspan - 1 <= coords[0].endCol
+              ele.row + ele.rowspan -1 <= coords[0].endRow &&
+              ele.col + ele.colspan -1 <= coords[0].endCol
             ) {
               self.pasteMergeCache.push({
                 rowReduce: ele.row - coords[0].startRow,
@@ -431,6 +436,7 @@ export default {
         },
 
         afterPaste: function(changes, coords) {
+          console.log(changes, coords)
           if (self.pasteMergeCache.length) {
             self.pasteMergeCache.forEach(ele => {
               self.hot1
@@ -568,6 +574,7 @@ export default {
       setTimeout(()=>{
         this.isEdit = false;
         this.$emit("whetherSave", this.isEdit, this.id);
+        this.hot1.deselectCell()
       })
     },
     "hotSettings.data": function(newVal, oldVal) {
@@ -700,24 +707,24 @@ export default {
           this.titleEditingIndex=index
         break
         case 'delete':
-          this.$confirm(
-            this.$createElement('p',  {class:"confirm-message" }, [
-              this.$createElement('svg', null, [
-                 this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
-              ]),
-              this.$createElement('span', null, '确定要删除该表格吗？')
-            ]),
-            {
-              confirmButtonText: "确定",
-              cancelButtonText: "取消"
-            }
-          )
-          .then(() => {
+          // this.$confirm(
+          //   this.$createElement('p',  {class:"confirm-message" }, [
+          //     this.$createElement('svg', null, [
+          //        this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+          //     ]),
+          //     this.$createElement('span', null, '确定要删除该表格吗？')
+          //   ]),
+          //   {
+          //     confirmButtonText: "确定",
+          //     cancelButtonText: "取消"
+          //   }
+          // )
+          // .then(() => {
             this.chartOptionsSourse.splice(index,1)
-          })
-          .catch(() => {
-            return false;
-          });
+          // })
+          // .catch(() => {
+          //   return false;
+          // });
         break
         default: 
           console.log('chartControllerHandle error');
@@ -1427,6 +1434,7 @@ export default {
     var webExcel = document.getElementById(`${this.idName}`);
     self.hot1 = new Handsontable(webExcel, self.hotSettings);
     self.hot1.updateSettings({
+      colWidths:  120*10/self.hot1.countCols(),
       contextMenu: {
         items: {
           row_above: {
@@ -1468,8 +1476,6 @@ export default {
               return "合并单元格";
             },
             callback(key, options) {
-              console.log(key)
-              console.log(options)
               let rangeArr = [
                 options[0].start.row,
                 options[0].start.col,
@@ -1624,6 +1630,9 @@ export default {
       this.allChartsFinished&&this.allChartsFinished();
       this[Symbol.for('finishedCharts')] = 0
     }
+    this.hot1.updateSettings({
+      colWidths:  120*10/this.hot1.countCols()
+    })
   },
   destroyed(){
     window.removeEventListener('keydown',this[Symbol.for('keydownSave')])
@@ -1677,7 +1686,7 @@ export default {
   }
   th,
   td {
-    vertical-align: middle;
+    vertical-align: middle !important;
   }
 }
 .flex-wrap {
@@ -1880,6 +1889,12 @@ td {
   width: 100%;
   display: flex;
   flex-wrap: wrap;
+  &.display-block{
+    display: block;
+    .chart-wrap{
+      margin: 18px auto 0 !important;
+    }
+  }
 }
 .chart-wrap{
   margin-top: 18px;

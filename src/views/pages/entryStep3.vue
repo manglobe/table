@@ -122,8 +122,7 @@
 				},
 				headers: {
 					'Accept': 'application/json, text/plain, */*',
-					'X-XSRF-TOKEN': 'c3a26c4a-6493-443e-a61e-48e92d68d077',
-					// 'X-XSRF-TOKEN': this.$store.state.csrf['X-XSRF-TOKEN'],
+					'X-XSRF-TOKEN': this.$store.state.csrf['X-XSRF-TOKEN'],
 				},							
 			}	
 		},

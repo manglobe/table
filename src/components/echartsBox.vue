@@ -80,13 +80,15 @@ export default {
       this.chart = echarts.init(this.$refs.box)
       this.chart.setOption(this.options);
       this.chart.on('finished' ,()=>{
-        this.finishedHandle&&this.finishedHandle()
+        if(JSON.stringify(this.chart.getOption) !== '{}'){
+          this.finishedHandle&&this.finishedHandle()
+        }
       })
 
     })
   },
   beforeUpdate(){
-    // this.chart.clear();
+    this.chart.clear();
     this.chart.setOption({...this.options,...{animation:false}});
   },
   updated(){

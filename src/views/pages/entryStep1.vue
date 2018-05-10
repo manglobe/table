@@ -430,7 +430,7 @@ export default {
     width: 717px;
     border-radius: 2px;
     // flex-direction: column;
-    justify-content: flex-start;
+    justify-content: flex-start !important;
     flex-wrap: wrap;
     .definition-item {
       width: 100%;
