@@ -180,7 +180,7 @@ export default {
           typeof self.propTable.tableData === "string"
             ? JSON.parse(self.propTable.tableData)
             : self.propTable.tableData,
-        mergeCells: true,
+        mergeCells:  self.propTable.cellInfo?JSON.parse(self.propTable.cellInfo):true,
         comments: true,
         colHeaders: true,
         rowHeaders: true,
@@ -215,6 +215,9 @@ export default {
           }
           if(c>c2){
             [c,c2]=[c2,c]
+          }
+          if(!self.hot1.getSelected){
+            return 
           }
           const SelectedRange = self.hot1.getSelected();
           if(SelectedRange.length===1){
@@ -309,13 +312,11 @@ export default {
                   });
                   let isNum = false;
                   if(/[\d\.](?!%)/.test(expression)){
-                    console.log('isNum')
                     isNum =true 
                   }
                   expression = expression.replace(/([\d\.]+)%/g,(match,$1)=>{
                     return $1/100
                   })
-                  console.log(expression)
                 newVal = isNum?eval(expression):eval(expression)*100+'%';
               } catch (error) {
                 newVal = "#VALUE!";
@@ -350,7 +351,7 @@ export default {
                 // controlStore([`${changes[0][0]}-${changes[0][1]}`], false);
               }
               // 修改输入值
-              return newVal === "Infinity" ? "#DIV/0!" : newVal;
+              return (newVal === Infinity) ? "#DIV/0!" : newVal;
             }
             if(/^'=/.test(value)){
               return value.replace(/^'/,'');
@@ -363,6 +364,9 @@ export default {
             const row = changes[rowIndex][0];
             const col = changes[rowIndex][1];
             let val = computeValue(row, col, changedVal);
+            if(/\./.test(val)){
+              val = +val.toFixed(5).replace(/0+$/,'').replace(/\.$/,'')
+            }
             changes[rowIndex][3] = val;
           });
         },
@@ -388,22 +392,24 @@ export default {
             }
           };
           inputHandle();
-          editArea.addEventListener("input", inputHandle);
+          editArea.oninput = inputHandle
         },
 
         afterChange: function(changes, sourse) {
-          console.log(changes, sourse)
           if (sourse !== "funcRender") {
             self.funcRender();
           }
           if (changes) {
             self.chartDataUpDate(changes);
-            self.isEdit = true;
+            if (sourse !== 'populateFromArray'){
+              self.isEdit = true;
+            }
             self.$emit("whetherSave", self.isEdit, self.id);
           }
         },
 
-        afterCopy: function(changes, coords) {
+        beforeCopy: function(changes, coords) {
+          console.log(changes,coords)
           // 缓存已合并的单元格
           const mergedArr = self.hot1.getPlugin("MergeCells")
             .mergedCellsCollection.mergedCells;
@@ -427,28 +433,85 @@ export default {
               return true;
             }
           });
-
           self.clipboardCache = self.sheetclip.stringify(changes);
+          self.copyChangesCache = changes;
         },
 
         afterCut: function(changes) {
-          self.clipboardCache = self.sheetclip.stringify(changes);
+          // self.clipboardCache = self.sheetclip.stringify(changes);
         },
+        beforePaste: function(changes, coords){
+          const mergedCellsCollection = self.hot1.getPlugin("MergeCells").mergedCellsCollection;
 
-        afterPaste: function(changes, coords) {
-          console.log(changes, coords)
-          if (self.pasteMergeCache.length) {
-            self.pasteMergeCache.forEach(ele => {
-              self.hot1
-                .getPlugin("MergeCells")
-                .merge(
-                  coords[0].startRow + ele.rowReduce,
-                  coords[0].startCol + ele.colReduce,
-                  coords[0].startRow + ele.rowReduce + ele.rowspan - 1,
-                  coords[0].startCol + ele.colReduce + ele.colspan - 1
-                );
-            });
+          const firstMergedCells =  mergedCellsCollection.get(coords[0].startRow, coords[0].startCol);
+          if(firstMergedCells){
+            if(
+              (firstMergedCells.colspan === coords[0].endCol - coords[0].startCol + 1) &&
+              (firstMergedCells.rowspan === coords[0].endRow - coords[0].startRow + 1)
+            ){
+              return true
+            }
           }
+          
+          const targetRangeMergedCells = mergedCellsCollection.getWithinRange({
+              from:{
+                row: coords[0].startRow,
+                col:coords[0].startCol,
+              },
+              to:{
+                row:Math.max(coords[0].startRow + changes.length -1, coords[0].endRow),
+                col:Math.max(coords[0].startCol + changes[0].length -1, coords[0].endCol),
+              }
+          })
+          targetRangeMergedCells&&targetRangeMergedCells.forEach(ele=>{
+              mergedCellsCollection.remove(ele.row, ele.col)
+          })
+          const isOverlapping = mergedCellsCollection.isOverlapping({
+              row: coords[0].startRow,
+              col: coords[0].startCol,
+              rowspan:  changes.length,
+              colspan: changes[0].length
+          })
+
+          if(isOverlapping){
+            self.$alert(
+              self.$createElement('p',  {class:"confirm-message" }, [
+                self.$createElement('svg', null, [
+                  self.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+                ]),
+                self.$createElement('span', null, "不能仅改变合并单元格的一部分。")
+              ]),
+              "操作异常",
+              {
+                confirmButtonText: "确定"
+              }
+            );
+            targetRangeMergedCells&&targetRangeMergedCells.forEach(ele=>{
+              mergedCellsCollection.add(ele)
+            })
+            return false
+          }
+        },
+        afterPaste: function(changes, coords) {
+          // 外部复制，clear `copyChangesCache` `pasteMergeCache`
+          if(JSON.stringify(changes) === JSON.stringify(self.copyChangesCache)){
+            if (self.pasteMergeCache.length) {
+              self.pasteMergeCache.forEach(ele => {
+                self.hot1
+                  .getPlugin("MergeCells")
+                  .merge(
+                    coords[0].startRow + ele.rowReduce,
+                    coords[0].startCol + ele.colReduce,
+                    coords[0].startRow + ele.rowReduce + ele.rowspan - 1,
+                    coords[0].startCol + ele.colReduce + ele.colspan - 1
+                  );
+              });
+            }
+          }else{
+            self.copyChangesCache = '';
+            self.pasteMergeCache = [];
+          }
+
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
 
@@ -533,11 +596,13 @@ export default {
         },
 
         afterMergeCells(cellRange) {
-          self.hot1.setDataAtCell(
-            cellRange.from.row,
-            cellRange.from.col,
-            this[Symbol.for("mergeData")]
-          );
+          if(this[Symbol.for("mergeData")]){
+            self.hot1.setDataAtCell(
+              cellRange.from.row,
+              cellRange.from.col,
+              this[Symbol.for("mergeData")]
+            );
+          }
         },
 
         beforeUndo(action){
@@ -545,12 +610,14 @@ export default {
         },
         afterCreateCol(index, amount, source){
           self.hot1.updateSettings({
-            colWidths:  120*10/self.hot1.countCols()
+            colWidths:  120*10/self.hot1.countCols(),
+            mergeCells: JSON.parse(JSON.stringify(self.hot1.getPlugin('MergeCells').mergedCellsCollection.mergedCells))
           })
         },
         afterRemoveCol(index, amount){
           self.hot1.updateSettings({
-            colWidths:  120*10/self.hot1.countCols()
+            colWidths:  120*10/self.hot1.countCols(),
+            mergeCells: JSON.parse(JSON.stringify(self.hot1.getPlugin('MergeCells').mergedCellsCollection.mergedCells))
           })
         }
 
@@ -560,17 +627,28 @@ export default {
 
   watch: {
     "propTable": function(newVal, oldVal) {
+      console.log(newVal)
+      this.hot1.deselectCell()
       this.chartOptionsSourse= newVal.imgData?JSON.parse(newVal.imgData):[]
       this.tableId= newVal.tableId
-      this.hotSettings={...this.hotSettings,
-      ...{
-        data:typeof newVal.tableData === "string"
+      // this.hotSettings={...this.hotSettings,
+      // ...{
+      //   data:typeof newVal.tableData === "string"
+      //       ? JSON.parse (newVal.tableData)
+      //       : newVal.tableData,
+      //   mergeCells: JSON.parse(newVal.cellInfo)
+      // }}
+      const newData = typeof newVal.tableData === "string"
             ? JSON.parse (newVal.tableData)
             : newVal.tableData
-      }}
       this.hot1.updateSettings(
-        {data:this.hotSettings.data}
+        {
+          data: newData,
+          colWidths: 120*10/(newData[0].length),
+          mergeCells: JSON.parse(newVal.cellInfo)
+        }
       )
+      
       setTimeout(()=>{
         this.isEdit = false;
         this.$emit("whetherSave", this.isEdit, this.id);
@@ -731,13 +809,28 @@ export default {
       }
     },
     quitChartEditor(index, save){
-      this.titleEditingIndex = '';
       if(save){
+        if(this.chartTitleEditorCacheValue.length === 0){
+          this.$alert(
+            this.$createElement('p',  {class:"confirm-message" }, [
+              this.$createElement('svg', null, [
+                this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+              ]),
+              this.$createElement('span', null, '图表名称不能为空!')
+            ]),
+            "",
+            {
+              confirmButtonText: "确定"
+            }
+          );
+          return false
+        }
         this.chartOptionsSourse.splice(index,1,{
           ...this.chartOptionsSourse[index],
           ...{title:this.chartTitleEditorCacheValue}
         } )
       }
+      this.titleEditingIndex = '';
     },
     titleEditorKeydownHandle(e,index){
       if(e.keyCode===13){
@@ -897,6 +990,8 @@ export default {
       Input.addEventListener("input", this.drawFromInput);
       Input.changeVal = value => {
         Input.value = value;
+        Input.style.height = Input.scrollHeight + 4 + "px";
+        InputDisplay.style.height = Input.style.height;
         this.drawFromInput();
       };
     },
@@ -933,10 +1028,12 @@ export default {
       Input.style.left = settings.rowHeaderWidth + col * settings.colWidths + "px";
       Input.style.width = settings.colWidths + 2 + "px";
       Input.style.height = rowsHeight[row]+ 'px';
-      InputDisplay.style.top = Input.style.top
-      InputDisplay.style.left = Input.style.left
-      InputDisplay.style.width = Input.style.width
-      InputDisplay.style.height = Input.style.height
+      Input.style.minHeight = rowsHeight[row]+ 'px';
+      InputDisplay.style.top = Input.style.top;
+      InputDisplay.style.left = Input.style.left;
+      InputDisplay.style.width = Input.style.width;
+      InputDisplay.style.height = Input.style.height;
+      InputDisplay.style.minHeight = Input.style.minHeight;
       Input.changeVal(value);      
       Input.style.display = "block";
       InputDisplay.style.display = "block";
@@ -961,13 +1058,13 @@ export default {
       };
 
       // 单元格选择函数
-      const selectCall = (r, c, r2, c2) => {
+      const selectCall = (r, c, r2, c2,selectionLayerLevel) => {
         let selectStr, selectBeforeStr, selectEndStr;
         selectBeforeStr = Input.value.slice(0, Input.selectionStart);
         selectEndStr = Input.value.slice(Input.selectionEnd);
         selectCall.callback = false;
         //  光标位置检测
-        if (!Input.selectionStart === Input.selectionEnd) {
+        if (Input.selectionStart !== Input.selectionEnd) {
           selectStr = Input.value.slice(
             Input.selectionStart,
             Input.selectionEnd
@@ -987,12 +1084,16 @@ export default {
             )[0];
             let reg = new RegExp(localSelectedRange + "$");
             selectCall.callback = str => {
-              Input.changeVal(selectBeforeStr.replace(reg, str) + selectEndStr);
+              if(selectionLayerLevel>0){
+                Input.changeVal(selectBeforeStr+ `,${str}` + selectEndStr);
+                }else{
+                Input.changeVal(selectBeforeStr.replace(reg, str) + selectEndStr);
+              }
             };
           }
 
           if (
-            /[\*\/\-\+\(\:\^]{1}$/.test(selectBeforeStr) ||
+            /[\*\/\-\+\(\:\,]{1}$/.test(selectBeforeStr) ||
             /^\=$/.test(selectBeforeStr)
           ) {
             selectCall.callback = str => {
@@ -1012,6 +1113,7 @@ export default {
       const checkToStartSelect = () => {
         Input.isSelecting = false;
         this.hot1.removeHook("afterSelectionEnd", selectCall);
+        console.log(Input.scrollHeight)
         Input.style.height = Input.scrollHeight + 4 + "px";
         this.inputDisplay.style.height = Input.style.height;
         if (!/^=/.test(Input.value)) {
@@ -1027,6 +1129,8 @@ export default {
       };
       checkToStartSelect();
       Input.addEventListener("input", checkToStartSelect);
+      // Input.removeEventListener("input", checkToStartSelect);
+      
       const clickHandle = e => {
         // blur
         if (Input.style.display !== "block" || e.target === Input) {
@@ -1394,7 +1498,7 @@ export default {
       this.isEdit = false;
       this.save(params).then(res => { 
         if (res.responseCode == "0") {
-          this.tableId = res.result.tableId;
+          // this.tableId = res.result.tableId;
           this.saving = false;
           this.isEdit = false;
           this.$message.success("保存成功！");
@@ -1413,11 +1517,9 @@ export default {
       })
     },
     undo(){
-      // console.log(this.hot1.isUndoAvailable())
       this.hot1.undo()
     },
     redo(){
-      // console.log(this.hot1.isRedoAvailable())
       this.hot1.redo()
     },
     chartsFinishedHandle(){
@@ -1482,6 +1584,7 @@ export default {
                 options[0].end.row,
                 options[0].end.col
               ];
+
               if (!this[Symbol.for("useMerge")]) {
                 this.getPlugin("MergeCells").unmerge(...rangeArr);
                 return;
@@ -1597,12 +1700,13 @@ export default {
             name: "剪切"
           },
           paste: {
+            // 浏览器安全策略限制 ，不应该通过脚本直接操作剪贴板
             name: "粘贴",
             disabled: function() {
               return self.clipboardCache.length === 0;
             },
             callback: function() {
-              var plugin = self.hot1.getPlugin("copyPaste");
+              const plugin = self.hot1.getPlugin("copyPaste");
               self.hot1.listen();
               plugin.paste(self.clipboardCache);
             }
@@ -1624,15 +1728,13 @@ export default {
       }
     }
     window.addEventListener('keydown', this[Symbol.for('keydownSave')])
+    window.Excel = this.hot1
   },
   updated(){
     if(this.chartOptionsSourse.length === 0){
       this.allChartsFinished&&this.allChartsFinished();
       this[Symbol.for('finishedCharts')] = 0
     }
-    this.hot1.updateSettings({
-      colWidths:  120*10/this.hot1.countCols()
-    })
   },
   destroyed(){
     window.removeEventListener('keydown',this[Symbol.for('keydownSave')])
@@ -1811,7 +1913,7 @@ td {
 .layer-input {
   display: none;
   position: absolute;
-  z-index: 104;
+  z-index: 106;
   border: none;
   outline-width: 0;
   margin: 0;
@@ -1840,7 +1942,7 @@ td {
   text-align: start;
   word-break: break-all;
   position: absolute;
-  z-index: 105;
+  z-index: 107;
   border: none;
   outline-width: 0;
   margin: 0;

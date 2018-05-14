@@ -57,7 +57,6 @@ const transpose = (matrix) => {
 
 
 const checkData = data => {
-  // const str = data.map(ele=>ele.join(',')).join(',')+','
   let numbers = [];
   let percents = [];
   let others = [];
@@ -134,19 +133,6 @@ const chartDataFilter = dataSourse => {
       }
     }
   }
-  // if (!column.slice(1).some(ele => !/^\d+(\.\d+)?%?$/.test(String(ele)))) {
-  //   column = (/^\d+(\.\d+)?%?$/.test(String(column[0]))?column:column.slice(1)).map((ele, index) => `系列${index+1}`)
-  // } else {
-  //   data = data.map(ele => ele.slice(1))
-  //   row = row.slice(1)    
-  // }
-  // if (!row.slice(1).some(ele => !/^\d+(\.\d+)?%?$/.test(String(ele)))) {
-  //   row = (/^\d+(\.\d+)?%?$/.test(String(row[0]))?row:row.slice(1)).map((ele, index) => index + 1)
-  // } else {
-  //   data = data.slice(1)
-  //   // column = column.slice(1)
-    
-  // }
   data= data.map(ele=>ele.map(ele2=>ele2===''?0:ele2))
   const checkResult = checkData(data)
   if (checkResult.type === 'error') {
@@ -176,12 +162,11 @@ export const excelCharts = {
           top: 10,
           left: 'center',
           text: dataSourse.title,
-          // subtext: ' '
         },
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data: filtedData.column,
+          data: filtedData.column.map(ele=>ele.substr(0,19)),
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
           },
@@ -200,7 +185,12 @@ export const excelCharts = {
         xAxis: {
           type: 'category',
           boundaryGap: false,
-          data: filtedData.row
+          data: filtedData.row,
+          axisLabel: {
+            formatter: function (val) {
+              return val === 'null' ? '' : val.substr(0,19)
+            }
+          },
         },
         yAxis: {
           type: 'value',
@@ -236,18 +226,16 @@ export const excelCharts = {
     name: '柱状图（簇形）',
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
-
       return {
         title: {
           top: 10,
           left: 'center',
           text: dataSourse.title,
-          // subtext: ' '
         },
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data: filtedData.column,
+          data: filtedData.column.map(ele=>ele.substr(0,19)),
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
           },
@@ -266,7 +254,12 @@ export const excelCharts = {
         calculable: true,
         xAxis: [{
           type: 'category',
-          data: filtedData.row
+          data: filtedData.row,
+          axisLabel: {
+            formatter: function (val) {
+              return val === 'null' ? '' : val.substr(0,19)
+            }
+          },
         }],
         yAxis: [{
           type: 'value',
@@ -307,12 +300,11 @@ export const excelCharts = {
           top: 10,
           left: 'center',
           text: dataSourse.title,
-          // subtext: ' '
         },
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data: filtedData.row,
+          data: filtedData.row.map(ele=>ele.substr(0,19)),
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
           },
@@ -344,11 +336,6 @@ export const excelCharts = {
           type: 'pie',
           radius : '50%',
         }]
-        // series: filtedData.data.map((ele, index) => ({
-        //   data: ele,
-        //   type: 'pie',
-        //   name: filtedData.column[index]
-        // }))
       };
     }
   },
@@ -357,7 +344,9 @@ export const excelCharts = {
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
 
-      const sumArr =  transpose(filtedData.data).map(ele=>eval(ele.join('+')));
+      const sumArr =  transpose(filtedData.data).map(ele=>{
+        return eval(ele.map(ele=> isNaN(+ele)?0:ele).join('+'))
+      });
       const sum = eval(sumArr.join('+'));
       const proportion = sumArr.map(ele=>ele/sum)
 
@@ -369,7 +358,6 @@ export const excelCharts = {
       sortArr.sort((p,n)=>p.value<n.value)
       let sortedProportion = sortArr.map(ele=>ele.proportion)
       sortedProportion.reduce((p,n,i)=>{sortedProportion[i]=p+n; return p+n})
-
       return {
         tooltip: {
           trigger: 'axis',
@@ -379,31 +367,33 @@ export const excelCharts = {
                   color: '#999'
               }
           },
-          // formatter: params=>{
-          //   params[1].data = `${(params[1].data*100).toFixed(2)}%`
-          //   return `${params[0].name || ''}: ${params[0].data}<br /> ${params[1].data}`
-          // },
           formatter: function(params){
             return `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${params[0].color};"></span>
-            ${params[0].name || ''}: ${filtedData.type === 'precent'?(params[0].data * 100).toFixed(2) + '%':params[0].data}<br />
+            ${params[0].name  === 'null' ? '' : params[0].name}: ${filtedData.type === 'precent'?(params[0].data * 100).toFixed(2) + '%':params[0].data}<br />
             <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:transparent"></span> ${(params[1].data*100).toFixed(2)}%`
           }
         },
-        legend: {
-            padding: [0, 5],
-            bottom: 5,
-            data: sortArr.map(ele=>ele.name),
-            formatter: function (name) {
-              return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
-            },
-        },
+        // legend: {
+        //     padding: [0, 5],
+        //     bottom: 5,
+        //     data: sortArr.map(ele=>ele.name.substr(0,19)),
+        //     formatter: function (name) {
+        //       console.log(name)
+        //       return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
+        //     },
+        // },
         xAxis: [
             {
                 type: 'category',
                 data: sortArr.map(ele=>ele.name),
                 axisPointer: {
                   type: 'shadow'
-                }
+                },
+                axisLabel: {
+                  formatter: function (val) {
+                    return val === 'null' ? '' : val.substr(0,19)
+                  }
+                },
             }
         ],
         yAxis: [
@@ -418,15 +408,15 @@ export const excelCharts = {
                 }
               },
               axisPointer: {
-                  label: {
-                      formatter: function (params) {
+                label: {
+                    formatter: function (params) {
+                      return (params.value  * 100).toFixed(2) + '%';
+                      if(filtedData.type === 'precent'){
                         return (params.value  * 100).toFixed(2) + '%';
-                        if(filtedData.type === 'precent'){
-                          return (params.value  * 100).toFixed(2) + '%';
-                        } 
-                        return params
-                      }
-                  }
+                      } 
+                      return params
+                    }
+                }
               }
             },
             {

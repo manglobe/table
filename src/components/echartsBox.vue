@@ -6,8 +6,8 @@
         <i></i>
         <i></i>
       </span>
-      <ul>
-        <li v-for="item in controllers" :key="item.index" @click="changeHandle(item.value)">
+      <ul v-if="controlAble">
+        <li v-for="item in controllers" :key="item.index" @click="clickHandle(item.value)">
           {{item.label}}
         </li>
       </ul>
@@ -38,6 +38,7 @@ export default {
   data(){
       return {
           chart:{},
+          controlAble: true,
           controllers: [
             {
               value: 'transpose',
@@ -71,8 +72,13 @@ export default {
       return optionObj
     }
   },
-  method:{
-
+  methods:{
+    clickHandle(val){
+      // hack 防止删除操作后 控制菜单依然显示
+      this.controlAble = false
+      this.changeHandle(val);
+      setTimeout(()=>this.controlAble = true)
+    }
   },
   mounted(){
     setTimeout(()=>{
@@ -90,6 +96,7 @@ export default {
   beforeUpdate(){
     this.chart.clear();
     this.chart.setOption({...this.options,...{animation:false}});
+    
   },
   updated(){
   }

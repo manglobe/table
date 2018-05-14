@@ -214,20 +214,19 @@ export default {
         }
       })
    },
+   checkClickHandle(e){
+    let mark = this.args.some(data => {
+    return data === true;
+    });
+    if(mark){
+      e.stopPropagation()
+      // _this.dialogVisible = true;
+      this.unSaveAlert()
+    }
+   },
    checkSaveHandle(){
     if(this.indicatorsTable.length>1){
-      const _this = this
-      const checkClickHandle = function(e){
-        let mark = _this.args.some(data => {
-          return data === true;
-          });
-          if(mark){
-            e.stopPropagation()
-            // _this.dialogVisible = true;
-            _this.unSaveAlert()
-          }
-        }
-      this.$refs.pagonation.$el.addEventListener('click', checkClickHandle , true)
+      this.$refs.pagonation.$el.addEventListener('click', this.checkClickHandle , true)
       }
     }
   },
