@@ -133,7 +133,7 @@ const chartDataFilter = dataSourse => {
       }
     }
   }
-  data= data.map(ele=>ele.map(ele2=>ele2===''?0:ele2))
+  data= data.map(ele=>ele.map(ele2=>(ele2==='' || ele2===null) ? 0 : ele2))
   const checkResult = checkData(data)
   if (checkResult.type === 'error') {
     return checkResult.msg

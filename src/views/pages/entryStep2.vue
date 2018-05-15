@@ -36,7 +36,22 @@
 	    	  @click="confirmGotoStep(3)">下一步</el-button>
 	    </div>
 		<div class="entry-step-2">
-        <div class="indicator-table">
+        <div 
+          class="indicator-table"
+          v-for ="(item, index) in indicatorsTable"
+          :key="index" 
+          v-if="currentPage - index === 1"
+        >
+          <web-excel 
+
+            :prop-table="item"
+            v-on:whetherSave='dependEdit'
+            :id="currentPage-1"
+            :save="save"
+            :delete="del"
+            ></web-excel>     
+        </div>
+        <!-- <div class="indicator-table">
           <web-excel 
             v-if="currentTableData"
             :prop-table="currentTableData"
@@ -45,7 +60,7 @@
             :save="save"
             :delete="del"
             ></web-excel>     
-        </div>
+        </div> -->
 		</div>
 	</div>	
 </template>

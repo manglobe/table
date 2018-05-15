@@ -364,8 +364,15 @@ export default {
             const row = changes[rowIndex][0];
             const col = changes[rowIndex][1];
             let val = computeValue(row, col, changedVal);
-            if(/\./.test(val)){
-              val = +val.toFixed(5).replace(/0+$/,'').replace(/\.$/,'')
+            
+            if(/\.[\d]{6}/.test(val)){
+              if(/%$/.test(val)){
+                val = val.replace(/%/,'')
+                val = +(+val).toFixed(5).replace(/0+$/,'').replace(/\.$/,'')
+                val = val + '%'
+              }else if(!isNaN(+val)){
+                val = +(+val).toFixed(5).replace(/0+$/,'').replace(/\.$/,'')
+              }
             }
             changes[rowIndex][3] = val;
           });
@@ -400,8 +407,8 @@ export default {
             self.funcRender();
           }
           if (changes) {
-            self.chartDataUpDate(changes);
-            if (sourse !== 'populateFromArray'){
+            if (sourse !== 'populateFromArray' &&sourse !== 'loadData'){
+              self.chartDataUpDate(changes);
               self.isEdit = true;
             }
             self.$emit("whetherSave", self.isEdit, self.id);
@@ -409,7 +416,6 @@ export default {
         },
 
         beforeCopy: function(changes, coords) {
-          console.log(changes,coords)
           // 缓存已合并的单元格
           const mergedArr = self.hot1.getPlugin("MergeCells")
             .mergedCellsCollection.mergedCells;
@@ -442,9 +448,9 @@ export default {
         },
         beforePaste: function(changes, coords){
           const mergedCellsCollection = self.hot1.getPlugin("MergeCells").mergedCellsCollection;
-
           const firstMergedCells =  mergedCellsCollection.get(coords[0].startRow, coords[0].startCol);
-          if(firstMergedCells){
+
+          if(firstMergedCells&&changes.length===1&&changes[0].length === 1){
             if(
               (firstMergedCells.colspan === coords[0].endCol - coords[0].startCol + 1) &&
               (firstMergedCells.rowspan === coords[0].endRow - coords[0].startRow + 1)
@@ -627,38 +633,33 @@ export default {
 
   watch: {
     "propTable": function(newVal, oldVal) {
-      console.log(newVal)
-      this.hot1.deselectCell()
       this.chartOptionsSourse= newVal.imgData?JSON.parse(newVal.imgData):[]
-      this.tableId= newVal.tableId
-      // this.hotSettings={...this.hotSettings,
-      // ...{
-      //   data:typeof newVal.tableData === "string"
-      //       ? JSON.parse (newVal.tableData)
-      //       : newVal.tableData,
-      //   mergeCells: JSON.parse(newVal.cellInfo)
-      // }}
+      this.tableId= newVal.tableId;
+
       const newData = typeof newVal.tableData === "string"
-            ? JSON.parse (newVal.tableData)
-            : newVal.tableData
-      this.hot1.updateSettings(
-        {
-          data: newData,
-          colWidths: 120*10/(newData[0].length),
-          mergeCells: JSON.parse(newVal.cellInfo)
-        }
-      )
-      
+        ? JSON.parse (newVal.tableData)
+        : newVal.tableData
+      this.hotSettings={...this.hotSettings,
+      ...{
+        mergeCells: JSON.parse(newVal.cellInfo),
+        data: newData,
+        colWidths: 120*10/(newData[0].length),
+      }}
+      this.hot1.updateSettings = {
+        mergeCells: JSON.parse(newVal.cellInfo),
+        data: newData,
+        colWidths: 120*10/(newData[0].length),
+      }
       setTimeout(()=>{
         this.isEdit = false;
         this.$emit("whetherSave", this.isEdit, this.id);
         this.hot1.deselectCell()
       })
     },
-    "hotSettings.data": function(newVal, oldVal) {
-      this.isEdit = true;
-      this.$emit("whetherSave", this.isEdit, this.id);
-    },
+    // "hotSettings.data": function(newVal, oldVal) {
+    //   this.isEdit = true;
+    //   this.$emit("whetherSave", this.isEdit, this.id);
+    // },
     "chartOptionsSourse":function(){
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
@@ -1113,7 +1114,6 @@ export default {
       const checkToStartSelect = () => {
         Input.isSelecting = false;
         this.hot1.removeHook("afterSelectionEnd", selectCall);
-        console.log(Input.scrollHeight)
         Input.style.height = Input.scrollHeight + 4 + "px";
         this.inputDisplay.style.height = Input.style.height;
         if (!/^=/.test(Input.value)) {
@@ -1197,43 +1197,22 @@ export default {
             self.hotSettings.data[i][j] &&
             !isNaN(parseFloat(self.hotSettings.data[i][j]))
           ) {
-            switch (type) {
-              case 0: //常规
-                self.$set(
-                  self.hotSettings.data[i],
-                  j,
-                  self.formatNumber(self.selectedData[i][j], null)
-                );
-                break;
-              case 1: //数字
-                self.$set(
-                  self.hotSettings.data[i],
-                  j,
-                  self.formatNumber(self.selectedData[i][j], null)
-                );
-                break;
-              case 2: //数字(保留两位小数)
-                self.$set(
-                  self.hotSettings.data[i],
-                  j,
-                  self.formatNumber(self.selectedData[i][j], 2)
-                );
-                break;
-              case 3: //百分比
-                self.$set(
-                  self.hotSettings.data[i],
-                  j,
-                  self.formatPercentage(self.selectedData[i][j], null)
-                );
-                break;
-              case 4: //百分比(保留两位小数)
-                self.$set(
-                  self.hotSettings.data[i],
-                  j,
-                  self.formatPercentage(self.selectedData[i][j], 2)
-                );
-                break;
-            }
+            const data = ((type)=>{
+              switch (type) {
+                case 0: //常规
+                  return self.formatNumber(self.selectedData[i][j], null)
+                case 1: //数字
+                  return self.formatNumber(self.selectedData[i][j], null)
+                case 2: //数字(保留两位小数)
+                  return self.formatNumber(self.selectedData[i][j], 2)
+                case 3: //百分比
+                  return self.formatPercentage(self.selectedData[i][j], null)
+                case 4: //百分比(保留两位小数)
+                  return self.formatPercentage(self.selectedData[i][j], 2)
+              }
+            })(type)
+            
+            self.hot1.setDataAtCell(i,j,data)
           }
         }
       }
@@ -1272,213 +1251,6 @@ export default {
         } else {
           return result.toFixed(2) + "%";
         }
-      }
-    },
-    calculateRow(formula) {
-      let self = this;
-      switch (formula) {
-        case "add":
-          for (let i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
-            let result = self.selectedData[i][self.firstSelectedCol];
-            for (
-              let j = self.firstSelectedCol + 1;
-              j <= self.lastSelectedCol;
-              j++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).add(value);
-            }
-            self.$set(
-              self.hotSettings.data[i],
-              self.lastSelectedCol + 1,
-              result
-            );
-          }
-          break;
-        case "sub":
-          for (let i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
-            let result = self.selectedData[i][self.firstSelectedCol];
-            for (
-              let j = self.firstSelectedCol + 1;
-              j <= self.lastSelectedCol;
-              j++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).sub(value);
-            }
-            self.$set(
-              self.hotSettings.data[i],
-              self.lastSelectedCol + 1,
-              result
-            );
-          }
-          break;
-        case "div":
-          for (let i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
-            let result = self.selectedData[i][self.firstSelectedCol];
-            for (
-              let j = self.firstSelectedCol + 1;
-              j <= self.lastSelectedCol;
-              j++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).div(value);
-            }
-            self.$set(
-              self.hotSettings.data[i],
-              self.lastSelectedCol + 1,
-              result
-            );
-          }
-          break;
-        case "mul":
-          for (let i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
-            let result = self.selectedData[i][self.firstSelectedCol];
-            for (
-              let j = self.firstSelectedCol + 1;
-              j <= self.lastSelectedCol;
-              j++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).mul(value);
-            }
-            self.$set(
-              self.hotSettings.data[i],
-              self.lastSelectedCol + 1,
-              result
-            );
-          }
-          break;
-        case "average":
-          for (let i = self.firstSelectedRow; i <= self.lastSelectedRow; i++) {
-            let result = self.selectedData[i][self.firstSelectedCol];
-            let count = 1;
-            for (
-              let j = self.firstSelectedCol + 1;
-              j <= self.lastSelectedCol;
-              j++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).add(value);
-              count++;
-            }
-            let average = Calculation(parseFloat(result)).div(count);
-            if (result.toString().indexOf("%") > 0) {
-              average = `${average}%`;
-            }
-            self.$set(
-              self.hotSettings.data[i],
-              self.lastSelectedCol + 1,
-              average
-            );
-          }
-          break;
-      }
-    },
-    calculateCol(formula) {
-      let self = this;
-      let rowLength = self.hotSettings.data.length;
-      let colLength = self.hotSettings.data[0].length;
-      if (self.lastSelectedRow + 1 === rowLength) {
-        self.hotSettings.data.push(new Array(colLength));
-      }
-      switch (formula) {
-        case "add":
-          for (let j = self.firstSelectedCol; j <= self.lastSelectedCol; j++) {
-            let result = self.selectedData[self.firstSelectedRow][j];
-            for (
-              let i = self.firstSelectedRow + 1;
-              i <= self.lastSelectedRow;
-              i++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).add(value);
-            }
-            self.$set(
-              self.hotSettings.data[self.lastSelectedRow + 1],
-              j,
-              result
-            );
-          }
-          break;
-        case "sub":
-          for (let j = self.firstSelectedCol; j <= self.lastSelectedCol; j++) {
-            let result = self.selectedData[self.firstSelectedRow][j];
-            for (
-              let i = self.firstSelectedRow + 1;
-              i <= self.lastSelectedRow;
-              i++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).sub(value);
-            }
-            self.$set(
-              self.hotSettings.data[self.lastSelectedRow + 1],
-              j,
-              result
-            );
-          }
-          break;
-        case "div":
-          for (let j = self.firstSelectedCol; j <= self.lastSelectedCol; j++) {
-            let result = self.selectedData[self.firstSelectedRow][j];
-            for (
-              let i = self.firstSelectedRow + 1;
-              i <= self.lastSelectedRow;
-              i++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).div(value);
-            }
-            self.$set(
-              self.hotSettings.data[self.lastSelectedRow + 1],
-              j,
-              result
-            );
-          }
-          break;
-        case "mul":
-          for (let j = self.firstSelectedCol; j <= self.lastSelectedCol; j++) {
-            let result = self.selectedData[self.firstSelectedRow][j];
-            for (
-              let i = self.firstSelectedRow + 1;
-              i <= self.lastSelectedRow;
-              i++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).mul(value);
-            }
-            self.$set(
-              self.hotSettings.data[self.lastSelectedRow + 1],
-              j,
-              result
-            );
-          }
-          break;
-        case "average":
-          for (let j = self.firstSelectedCol; j <= self.lastSelectedCol; j++) {
-            let result = self.selectedData[self.firstSelectedRow][j];
-            let count = 1;
-            for (
-              let i = self.firstSelectedRow + 1;
-              i <= self.lastSelectedRow;
-              i++
-            ) {
-              let value = self.selectedData[i][j] || 0;
-              result = Calculation(result).add(value);
-              count++;
-            }
-            let average = Calculation(parseFloat(result)).div(count);
-            if (result.toString().indexOf("%") > 0) {
-              average = `${average}%`;
-            }
-            self.$set(
-              self.hotSettings.data[self.lastSelectedRow + 1],
-              j,
-              average
-            );
-          }
-          break;
       }
     },
     getExcelData() {
@@ -1728,7 +1500,6 @@ export default {
       }
     }
     window.addEventListener('keydown', this[Symbol.for('keydownSave')])
-    window.Excel = this.hot1
   },
   updated(){
     if(this.chartOptionsSourse.length === 0){
