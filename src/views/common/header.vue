@@ -1,7 +1,7 @@
 <template>
 	<div class="header">
 		<div class="logo-wrap">
-		    <img src="/static/imgs/menuclose.png" style="margin-left: 55px;margin-right: 66px;">
+		    <img src="/static/imgs/menuclose.png" style="margin-left: 15px;margin-right: 66px;">
 			<img src="/static/imgs/logo.png">
 			<span class="line">质量指标系统</span>
 		</div>
@@ -42,10 +42,17 @@
     @import '../../assets/scss/position.scss';
 
 	.header {
-        @include align-justify-between;
+		@include align-justify-between;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		width: 100%;
+		z-index: 130;
         height: 76px;
         padding-left: 20px;
-        padding-right: 40px;
+		padding-right: 40px;
+		box-sizing: border-box;
         font-size: 18px;
         color: #fff;
         background-color: #06aea6;

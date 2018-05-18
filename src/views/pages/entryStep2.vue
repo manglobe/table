@@ -1,9 +1,9 @@
 <template>
 	<div>
-	    <div class="steps">
-			<span class="step stepActive" @click="confirmGotoStep(1)">1、定义指标</span>
-			<span class="step stepActive"><span class="arrow arrowActive"></span>2、新增图表</span>
-			<span class="step" @click="confirmGotoStep(3)"><span class="arrow arrowActive"></span>3、分析结果</span>
+	    <div class="steps steps-wrap">
+        <span class="step stepActive" @click="confirmGotoStep(1)">1、定义指标</span>
+        <span class="step stepActive"><span class="arrow arrowActive"></span>2、新增图表</span>
+        <span class="step" @click="confirmGotoStep(3)"><span class="arrow arrowActive"></span>3、分析结果</span>
 			<!-- <span class="step" @click="confirmGotoStep(3)"><span class="arrow arrowActive"></span>3、生成报表</span> -->
 			<!-- <span class="step" @click="confirmGotoStep(4)"><span class="arrow"></span>4、分析结果</span> -->
 		</div>
@@ -256,6 +256,10 @@ export default {
 
 <style rel="stylesheet/scss" lang="scss">
 @import "../../assets/scss/position.scss";
+.steps{
+  width: 100% !important;
+  height: 30px !important;
+}
 .entry-step-2 {
   // top: 80px;
   // bottom: 60px;
@@ -265,10 +269,10 @@ export default {
     min-width: 710px;
     margin: 13px auto;
   }
-  .indicator-table {
+  // .indicator-table {
     // width: 95%;
     // margin: 0 auto;
-  }
+  // }
   .el-icon-information {
     margin-left: 20px;
     color: rgba(0, 0, 0, 0.43);

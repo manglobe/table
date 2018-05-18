@@ -202,13 +202,15 @@
 					</el-select>	
 					</el-row>	
 				</div>
+			</div>							
+	    </div>
+      <div class="button-wrapper">
 				<el-button
 					type="primary" 
 					class="primary-btn"
 					size="large"
 					@click="gotoStep(2)">下一步</el-button>
-			</div>							
-	    </div>
+      </div>
     </div>
 </template>
 
@@ -356,20 +358,34 @@ export default {
 </script>
 
 <style rel="stylesheet/scss" lang="scss">
+.steps{
+  width: 100% !important;
+  height: 30px !important;
+  .step{
+    line-height: 30px;
+    .arrow{
+      // top:-15px;
+      border-top:15px solid transparent;
+      border-bottom:15px solid transparent;
+      &::before{
+        top:-15px;
+        border-top:15px solid transparent;
+        border-bottom:15px solid transparent;
+      }
+    }
+  }
+}
 .step.stepError{
-  background-color: #FF897D;
+  background-color: #FF897D!important;
 }
 .steps .step .arrow.stepError:before {
-  border-left-color: #FF897D;
+  border-left-color: #FF897D!important;
   
 }
 .entry-step-1 {
-  top: 90px;
-  bottom: 0;
   background-color: #fff;
-  padding-top: 32px;
   padding-bottom: 24px;
-  overflow: overlay;
+  overflow: hidden;
   border: 1px solid #e5e9f1;
   box-shadow: 0 0 3px 0 #ced7e8;
   
@@ -382,7 +398,10 @@ export default {
   }
   .input-wrap {
     position: relative;
-    margin-top: 25px;
+    margin-top: 24px;
+    .title2{
+      color: #666;
+    }
     .el-select {
       width: 216px;
     }
@@ -395,6 +414,7 @@ export default {
       word-wrap: break-word;
     }
   }
+
   .el-input.warning,
   .el-select.warning,
   .el-textarea.warning {
@@ -422,7 +442,11 @@ export default {
     display: inline-block;
   }
   .el-input__inner {
-    height: 33px !important;
+    height: 30px !important;
+    &:focus{
+      border-color: #06aea6 !important;
+      box-shadow: 0 0 3px #06aea6;
+    }
   }
   .row-bg {
     padding: 20px 30px;
@@ -452,8 +476,11 @@ export default {
     margin-bottom: 10px;
   }
   .tips {
-    margin-top: 10px;
+    // margin-top: 10px;
     position: relative;
+    height: 24px;
+    line-height: 24px;
+    margin-bottom: -24px;
   }
   .primary-btn {
     margin-left: 100px;
@@ -465,11 +492,17 @@ export default {
     }
   }
 }
+.el-popper[x-placement^=bottom]{
+  margin-top: 3px;
+}
+.el-popper[x-placement^=bottom] .popper__arrow{
+  display: none;
+}
 .el-select-dropdown__list {
   padding: 0;
 }
 .el-select-dropdown__item.hover {
-  background: #fffbe0;
+  background: #fffbe0 !important;
   border-radius: 2px;
 }
 </style>

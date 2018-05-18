@@ -62,44 +62,60 @@
           </div>
         </div>
 
-        <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders"></div>
+        <div :id="idName" ref="excel" class="hot htCenter handsontable htRowHeaders htColumnHeaders">
+        </div>
+        <!-- chart editor -->
+        <div
+          @mousedown="dragChartEditor"
+          ref="chart-editor" class="chart-editor" v-if="JSON.stringify(editingChart) !== '{}'">
+          <Charts 
+            :optionsSourse ="editingChart"
+            :onChange="chartChange"
+            >
+          </Charts>
+          <div>
+            <span @click="saveChart">保存</span>
+            <span @click="cancelChart">取消</span>
+          </div>
+        </div>
+
         <div class="charts" :class="{'display-block': !editorAble}">
           <div 
-          class="chart-wrap" 
-          v-for="(item, index) in chartOptionsSourse" 
-          :key="index" 
-          :class="{ 'title-editing':titleEditingIndex === index }"
-          @mouseenter = "()=>toggleChartsRange(item,true)"
-          @mouseleave = "()=>toggleChartsRange(item,false)"
-        >
+            class="chart-wrap" 
+            v-for="(item, index) in chartOptionsSourse" 
+            :key="index" 
+            :class="{ 'title-editing':titleEditingIndex === index }"
+            @mouseenter = "()=>toggleChartsRange(item,true)"
+            @mouseleave = "()=>toggleChartsRange(item,false)"
+          >
             <div class="chart-layer" @click="()=>quitChartEditor(index)"></div>
-            <div class="chart-title-editor" >
-              <input
-                type="text" 
-                :value="item.title" 
-                autofocus
-                maxlength="20"
-                @keydown="e=>titleEditorKeydownHandle(e,index)"
-                @input="chartTitleEditorCacheValue= $event.target.value"
-              />
-              <i class="el-icon-close" title="取消" @click="()=>quitChartEditor(index, false)"></i>
-              <i class="el-icon-check" title="保存" @click="e=>quitChartEditor(index, true)"></i>
+              <div class="chart-title-editor" >
+                <input
+                  type="text" 
+                  :value="item.title" 
+                  autofocus
+                  maxlength="20"
+                  @keydown="e=>titleEditorKeydownHandle(e,index)"
+                  @input="chartTitleEditorCacheValue= $event.target.value"
+                />
+                <i class="el-icon-close" title="取消" @click="()=>quitChartEditor(index, false)"></i>
+                <i class="el-icon-check" title="保存" @click="e=>quitChartEditor(index, true)"></i>
+              </div>
+              <Charts 
+                :readonly="!editorAble"
+                :optionsSourse ="item"
+                :finishedHandle = "chartsFinishedHandle"
+              >
+              <!-- <Charts 
+                :readonly="!editorAble"
+                :optionsSourse ="item"
+                :changeHandle ="v=>chartControllerHandle(v,index)"
+                :chartsUnit = "excelCharts"
+                :finishedHandle = "chartsFinishedHandle"
+              > -->
+              </Charts>
             </div>
-            <Charts 
-              :readonly="editorAble"
-              :optionsSourse ="item"
-              :changeHandle ="v=>chartControllerHandle(v,index)"
-              :chartsUnit = "excelCharts"
-              :finishedHandle = "chartsFinishedHandle"
-            >
-            </Charts>
         </div>
-        </div>
-        <!-- <div class="chart-wrap">
-            <Charts :options="chartOptionFull" >
-            </Charts>
-        </div> -->
-      
       </div>
     </section>
 
@@ -115,9 +131,11 @@ import FakeSelect from "./fakeSelect.vue";
 import { excelFunctions, excelCharts } from "./excelPlugins/excelStaticData";
 import EchartsWrapper from "@/components/echartsWrapper.vue";
 import IEcharts from 'vue-echarts-v3/src/full.js';
-import Charts from '@/components/echartsBox.vue';
+import Charts from '@/components/echartBox/chartControl.vue';
+import ChartView from '@/components/echartBox/chartView.vue';
+// import Charts from '@/components/echartsBox.vue';
 export default {
-  components: { FakeSelect, IEcharts, Charts },
+  components: { FakeSelect, IEcharts, Charts, ChartView },
   props: {
     id: {
       type: [String, Number],
@@ -146,6 +164,7 @@ export default {
   data() {
     var self = this;
     return {
+      editingChart:{},
       excelCharts:excelCharts,
       chartOptionsSourse: self.propTable.imgData?JSON.parse(self.propTable.imgData):[],
       excelFunctionsOptions: Object.keys(excelFunctions).map(ele => ({
@@ -189,8 +208,8 @@ export default {
         maxCols: 15,
         colWidths: this.editorAble?120:64,
         rowHeaderWidth: this.editorAble?52:40,
-        rowHeights: this.editorAble?40:30,
-        columnHeaderHeight: this.editorAble?40:30,
+        rowHeights: this.editorAble?30:24,
+        columnHeaderHeight: this.editorAble?30:24,
         autoRowSize: {syncLimit: '40%'},
      
         outsideClickDeselects: false,
@@ -403,6 +422,7 @@ export default {
         },
 
         afterChange: function(changes, sourse) {
+          console.log(changes, sourse)
           if (sourse !== "funcRender") {
             self.funcRender();
           }
@@ -416,9 +436,11 @@ export default {
         },
 
         beforeCopy: function(changes, coords) {
+          console.log(changes, coords)
           // 缓存已合并的单元格
           const mergedArr = self.hot1.getPlugin("MergeCells")
             .mergedCellsCollection.mergedCells;
+               console.log(mergedArr)
           self.pasteMergeCache = [];
           // this.getPlugin(
           //       "MergeCells"
@@ -532,6 +554,7 @@ export default {
               j <= self.lastSelectedCol;
               j++
             ) {
+              self.selectedData[i]||(self.selectedData[i] = [])
               self.selectedData[i][j] = this.getDataAtCell(i, j);
             }
           }
@@ -616,13 +639,13 @@ export default {
         },
         afterCreateCol(index, amount, source){
           self.hot1.updateSettings({
-            colWidths:  120*10/self.hot1.countCols(),
+            colWidths:  (self.editorAble?120:64)*10/self.hot1.countCols(),
             mergeCells: JSON.parse(JSON.stringify(self.hot1.getPlugin('MergeCells').mergedCellsCollection.mergedCells))
           })
         },
         afterRemoveCol(index, amount){
           self.hot1.updateSettings({
-            colWidths:  120*10/self.hot1.countCols(),
+            colWidths:  (self.editorAble?120:64)*10/self.hot1.countCols(),
             mergeCells: JSON.parse(JSON.stringify(self.hot1.getPlugin('MergeCells').mergedCellsCollection.mergedCells))
           })
         }
@@ -643,12 +666,12 @@ export default {
       ...{
         mergeCells: JSON.parse(newVal.cellInfo),
         data: newData,
-        colWidths: 120*10/(newData[0].length),
+        colWidths: (this.editorAble?120:64)*10/(newData[0].length),
       }}
       this.hot1.updateSettings = {
         mergeCells: JSON.parse(newVal.cellInfo),
         data: newData,
-        colWidths: 120*10/(newData[0].length),
+        colWidths: (this.editorAble?120:64)*10/(newData[0].length),
       }
       setTimeout(()=>{
         this.isEdit = false;
@@ -684,6 +707,42 @@ export default {
   },
 
   methods: {
+    moveChartEditor(e){
+      let x = e.clientX
+      let y = e.clientY
+      const chartEditor = this.$refs['chart-editor']
+      window.cachePosition={
+        x: x - window.dragPosition.x,
+        y: y - window.dragPosition.y
+      } 
+      chartEditor.style.transform = `translate(${window.cachePosition.x}px,${window.cachePosition.y}px)`
+    },
+    dragChartEditor(e){
+      window.dragPosition = !window.cachePosition? {
+        x: e.clientX,
+        y: e.clientY,
+      }:{
+        x: e.clientX - (window.cachePosition.x || 0) ,
+        y: e.clientY - (window.cachePosition.y || 0),
+      }
+      window.addEventListener('mousemove', this.moveChartEditor)
+      window.addEventListener('mouseup', this.dropChartEditor)
+    },
+    dropChartEditor(){
+      window.dragPosition = {};
+      window.removeEventListener('mousemove', this.moveChartEditor)
+      window.removeEventListener('mouseup', this.dropChartEditor)
+    },
+    chartChange(){
+      console.log('chartChange')
+    },
+    saveChart(){
+      this.chartOptionsSourse.push(this.editingChart)
+      this.editingChart = {}
+    },
+    cancelChart(){
+      this.editingChart = {}
+    },
     chartDataUpDate(changes){
       this.chartOptionsSourse = this.chartOptionsSourse.map(ele=>{
         // 全局图表
@@ -753,25 +812,36 @@ export default {
         data = this.hot1.getData(...selectRange[0])
       }
       
-      this.chartOptionsSourse.push({
+      const sourseData = {
         data,
         type: v,
         title:'图表标题',
         transpose: false,
         range: selectRange,
         selectedRow: this.selectedRow,
-      })
-
+        optionObj:{},
+      }
+      try{
+        sourseData.optionObj = excelCharts[v].func(sourseData)
+      } catch (error){
+        console.log(error)
+      }
+        this.editingChart = sourseData
     },
     chartSelectFull(v) {
-       this.chartOptionsSourse.push({
+      this.editingChart ={
         data: JSON.parse(this.getExcelData().tableData),
         type: v,
         title:'图表标题',
         transpose: false,
         range:'full'
-      })
-
+      }
+     try{
+        sourseData.optionObj = excelCharts[v].func(sourseData)
+      } catch (error){
+        console.log(error)
+      }
+        this.editingChart = sourseData
     },
     chartControllerHandle(v,index){
       switch (v){
@@ -1308,7 +1378,7 @@ export default {
     var webExcel = document.getElementById(`${this.idName}`);
     self.hot1 = new Handsontable(webExcel, self.hotSettings);
     self.hot1.updateSettings({
-      colWidths:  120*10/self.hot1.countCols(),
+      colWidths:  (self.editorAble?120:64)*10/self.hot1.countCols(),
       contextMenu: {
         items: {
           row_above: {
@@ -1537,10 +1607,10 @@ export default {
   display: inline-block;
 }
 .excel-wrap {
-  width: 95%;
+  width: 98%;
   margin: 0 auto;
-  margin-top: 30px;
-  padding: 60px 40px 40px;
+  margin-top: 10px;
+  padding: 20px 40px 40px;
   background: #ffffff;
   box-sizing: border-box;
   border: 1px solid #e5e9f1;
@@ -1888,5 +1958,21 @@ td {
     border-radius: 2px;
     padding: 0;
   }
+}
+
+
+
+.chart-editor{
+  opacity: 0.8;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin-left: -240px;
+  margin-top: -150px;
+  width: 480px;
+  height: 300px;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+  cursor: all-scroll;
+  z-index: 200;
 }
 </style>

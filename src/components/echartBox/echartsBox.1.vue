@@ -14,7 +14,7 @@
         <i></i>
         <i></i>
       </span>
-      <ul v-if="controlAble">
+      <ul>
         <li v-for="item in controllers" :key="item.index" @click="clickHandle(item.value)">
           {{item.label}}
         </li>
@@ -27,29 +27,25 @@
 import echarts from 'echarts';
 export default {
   props:{
+      readonly:{
+        type: Boolean,
+      },
       editMode:{
         type:Boolean,
       },
       optionsSourse:{
         type: Object,
       },
-      changeHandle:{
-        type: Function,
-      } ,
-      chartsUnit:{
-        type: Object,
-      } ,
-      readonly:{
-        type: Boolean,
-      },
       finishedHandle:{
+        type: Function,
+      },
+      saveHandle:{
         type: Function,
       }
   },
   data(){
       return {
           chart:{},
-          controlAble: true,
           controllers: [
             {
               value: 'transpose',
@@ -59,13 +55,13 @@ export default {
               value: 'editorTitle',
               label: '修改标题'
             },
-            // {
-            //   value: 'editorLegend',
-            //   label: '修改图例'
-            // },
             {
-              value: 'delete',
-              label: '删除图表'
+              value: 'editorLegend',
+              label: '修改图例'
+            },
+            {
+              value: 'editorXaxis',
+              label: '修改横坐标'
             },
           ]
       }
@@ -86,9 +82,16 @@ export default {
   methods:{
     clickHandle(val){
       // hack 防止删除操作后 控制菜单依然显示
-      this.controlAble = false
-      this.changeHandle(val);
-      setTimeout(()=>this.controlAble = true)
+      this[val]();
+    },
+    transpose(){
+
+    },
+    editorTitle(){},
+    editorLegend(){},
+    editorXaxis(){},
+    save(){
+      this.saveHandle(this.options)
     }
   },
   mounted(){

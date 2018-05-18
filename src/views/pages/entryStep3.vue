@@ -18,12 +18,13 @@
 	    </div>
 	    <div class="entry-step entry-step-4">
 			<el-upload
+				style="display:none"
 				action='/file/upload'
 				:headers='headers'
 				:before-upload='beforeUpload'
 				:on-success='uploadedCallback'
 				>
-				<el-button ref='imgUpload' type="primary">从文件中导入图片</el-button>
+				<el-button ref='imgUpload' type="primary"></el-button>
 			</el-upload>
 	    	<div 
 	    	  v-loading="loading" 
@@ -256,10 +257,9 @@
 
 <style rel="stylesheet/scss" lang="scss">
     .entry-step-4 {
-	    top: 90px;
-	    bottom: 85px;
+
 	    .entry-step-inner {
-	    	position: absolute;
+	    	position: relative;
 		    top: 0;
 		    bottom: 0;
 		    overflow: auto;

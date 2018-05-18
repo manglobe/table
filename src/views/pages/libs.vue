@@ -83,9 +83,9 @@
 		<section class="display-wrap">
 			<div class="table-title">质量指标库</div>
 			<div class="handle-table">
-				<el-button type="text" @click="pdf">导出</el-button>
-				<span class="line"></span>
-				<el-button type="text">打印</el-button>
+				<el-button type="text" @click="pdf" class="pdf-export" :class="{'pdf-able': selectedUrl.length>0}">导出</el-button>
+				<!-- <span class="line"></span>
+				<el-button type="text">打印</el-button> -->
 			</div>    	
 			<el-table
 			:data="tableData" 
@@ -169,6 +169,7 @@ export default {
       deptId: "",
       person: "",
       dateRange: [],
+      selectedUrl: [],
       tableLoading: true,
       indicatorDialogVisible: false,
       visible2: false,
@@ -287,6 +288,9 @@ export default {
       }
     },
     pdf(){
+      if(this.selectedUrl.length<1){
+        return false
+      }
       this.loadingInstance = Loading.service({ fullscreen: true, text: 'pdf生成中……' });
       service.previewData({quotaIds:this.selectedUrl}).then(res=>{
         function* previewDatas(){
@@ -313,12 +317,13 @@ export default {
 .indicator-lib {
   width: 100%;
   box-sizing: border-box;
+  margin-top: -9px;
   & > section {
     background: #ffffff;
     border: 1px solid #e5e9f1;
     box-shadow: 0 0 3px 0 #ced7e8;
     margin-bottom: 20px;
-    padding: 20px 0;
+    padding-top: 20px;
   }
 
   .form-wrap {
@@ -341,6 +346,10 @@ export default {
     }
     .large-input {
       width: 520px;
+    }
+    .el-input__inner{
+      height: 30px;
+      line-height: 30px;
     }
   }
   .table-title {
@@ -413,7 +422,14 @@ export default {
     }
   }
 }
-
+.pdf-export{
+  margin-right: 20px !important;
+  cursor: not-allowed;
+}
+.pdf-able{
+  pointer-events: auto;
+  cursor: pointer;
+}
 .pdf-preview{
   position: fixed;
   opacity: 0;

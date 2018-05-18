@@ -1,5 +1,5 @@
 <template>
-  <div class="charts-box" :data-option = "options" >
+  <div class="charts-box">
     <!-- <div class= "charts-controller" v-if="editMode">
       <span @click="save">保存</span>
       <span @click="cancel">取消</span>
@@ -8,48 +8,42 @@
         <span  @click="editor">编辑</span>
         <span  @click="del">删除</span>
     </div> -->
-    <div class= "charts-editor" v-if="!readonly&&editMode">
+    <div class= "charts-editor" v-if="!readonly">
       <span class="editor-icons" >
         <i></i>
         <i></i>
         <i></i>
       </span>
-      <ul v-if="controlAble">
+      <ul>
         <li v-for="item in controllers" :key="item.index" @click="clickHandle(item.value)">
           {{item.label}}
         </li>
       </ul>
     </div>
-    <div ref='box' class="charts-display"></div>
+    <ChartView :options="options"
+        :legendHandle="legendHandle" 
+        >
+    </ChartView>
   </div>
 </template>
 <script>
 import echarts from 'echarts';
+import ChartView from './chartView';
 export default {
-  props:{
-      editMode:{
-        type:Boolean,
+    components:{ChartView},
+    props:{
+      readonly:{
+        type: Boolean,
       },
       optionsSourse:{
         type: Object,
       },
-      changeHandle:{
-        type: Function,
-      } ,
-      chartsUnit:{
-        type: Object,
-      } ,
-      readonly:{
-        type: Boolean,
-      },
-      finishedHandle:{
+      onChange:{
         type: Function,
       }
   },
   data(){
       return {
-          chart:{},
-          controlAble: true,
           controllers: [
             {
               value: 'transpose',
@@ -59,13 +53,13 @@ export default {
               value: 'editorTitle',
               label: '修改标题'
             },
-            // {
-            //   value: 'editorLegend',
-            //   label: '修改图例'
-            // },
             {
-              value: 'delete',
-              label: '删除图表'
+              value: 'editorLegend',
+              label: '修改图例'
+            },
+            {
+              value: 'editorXaxis',
+              label: '修改横坐标'
             },
           ]
       }
@@ -73,50 +67,30 @@ export default {
   computed:{
     options:function(){
       let optionObj = {}
-      try {
-        optionObj = this.optionsSourse.optionObj ||this.chartsUnit[this.optionsSourse.type].func(
-          this.optionsSourse
-        )
-      } catch (error) {
-        console.error(error)
-      }
-      return optionObj
+    //   try {
+    //     optionObj = this.optionsSourse.optionObj ||this.chartsUnit[this.optionsSourse.type].func(
+    //       this.optionsSourse
+    //     )
+    //   } catch (error) {
+    //     console.error(error)
+    //   }
+      return this.optionsSourse.optionObj || {}
     }
   },
   methods:{
     clickHandle(val){
-      // hack 防止删除操作后 控制菜单依然显示
-      this.controlAble = false
-      this.changeHandle(val);
-      setTimeout(()=>this.controlAble = true)
-    }
-  },
-  mounted(){
-    setTimeout(()=>{
-      // 异步获取目标节点size
-      this.chart = echarts.init(this.$refs.box)
-      this.chart.setOption(this.options);
-      this.chart.on('finished' ,()=>{
-        if(JSON.stringify(this.chart.getOption) !== '{}'){
-          this.finishedHandle&&this.finishedHandle()
-        }
-      })
+      this[val]();
+      this.onChange(this.options)
+    },
+    transpose(){
 
-      this.chart.on('legendselectchanged', (params)=>{
-        console.log(params)
-      })
-      this.chart.on('click', (params)=>{
-        console.log('click',params)
-      })
-    })
+    },
+    editorTitle(){},
+    editorLegend(){},
+    editorXaxis(){},
+
+    legendHandle(){},
   },
-  beforeUpdate(){
-    this.chart.clear();
-    this.chart.setOption({...this.options,...{animation:false}});
-    
-  },
-  updated(){
-  }
 }
 </script>
 <style rel="stylesheet/scss" lang="scss">

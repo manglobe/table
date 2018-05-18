@@ -51,15 +51,12 @@
 <style rel="stylesheet/scss" lang="scss">
     @import '../../assets/scss/animation.scss';
 	.content {
-		position: absolute;
-		left: 180px;
-		right: 0px;
-		top: 76px;
-		bottom: 0px;
-		padding: 25px;
-		overflow: overlay;
+		position: relative;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 86px 20px 60px 200px;
+		overflow: hidden;
 	    background-color: #f5f6f6;
-    	box-shadow: inset 1px 0 4px 0 rgba(202,202,202,0.5);
     	.scroll-to-up {
     		background-color: #06aea6;
     		position: fixed;

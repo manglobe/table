@@ -6,6 +6,9 @@ html, body {
 	height: 100%;
 	width: 100%;
 }
+body{
+	background: #f5f6f6;
+}
 //一级标题样式
 .title1 {
 	display: flex;
@@ -31,7 +34,7 @@ html, body {
 //输入框边框颜色
 .el-input__inner, .el-textarea__inner {
 	border: 1px solid #ccc!important;
-	color: #1f3c3d!important;	
+	color: #333!important;	
 }
 ::-webkit-input-placeholder {
 	color: #ccc!important;
@@ -87,7 +90,7 @@ input, textarea {
     	margin-right: 3px;
     	flex: 1;
     	text-align: center;
-    	line-height: 40px;
+    	line-height: 30px;
     	color: #fff;
     	font-size: 16px;
     	cursor: pointer;
@@ -99,33 +102,54 @@ input, textarea {
     		left: 0;
     		display: inline-block;
     		border-left: 15px solid #fff;
-    		border-top: 20px solid transparent;
-    		border-bottom: 20px solid transparent;
+    		border-top: 15px solid transparent;
+    		border-bottom: 15px solid transparent;
     		&:before {
     			content: '';
     			position: absolute;
 	    		left: -18px;
-	    		top: -20px;
+	    		top: -15px;
 	    		display: inline-block;
 	    		border-left: 15px solid #cacaca;
-	    		border-top: 20px solid transparent;
-	    		border-bottom: 20px solid transparent;
+	    		border-top: 15px solid transparent;
+	    		border-bottom: 15px solid transparent;
     		}
     		&.arrowActive {
     			&:before {
     				border-left: 15px solid #53BDE7;
     			}
     		}
-    	}
+		}
+		&:nth-child(2){
+			.arrow.arrowActive {
+    			&:before {
+    				border-left: 15px solid #53BDE7;
+    			}
+    		}
+		}
+		&:nth-child(3){
+			.arrow.arrowActive {
+    			&:before {
+    				border-left: 15px solid #0eaae8;
+    			}
+    		}
+		}
     }
     .stepActive {
-    	background-color: #53BDE7;
+		background-color: #53BDE7;
+		&:nth-child(2){
+			background-color: #0eaae8;
+		}
+		&:nth-child(3){
+			background-color: #0e98e8;
+		}
     }
 }
 .entry-step {
-	position: absolute;
-	left: 25px;
-    right: 25px;    
+	margin-top: 10px;
+	position: relative;
+	// left: 25px;
+    // right: 25px;    
 }
 //上一步下一步按钮
 .button-wrapper {
