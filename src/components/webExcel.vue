@@ -57,8 +57,8 @@
             <span>fx</span>
             <input type="text" readonly ref="funcInput">
             <FakeSelect svg='#icon-gongshi' ref="funcSelect"  v-bind:changeHandle="funcSelect" v-bind:options="excelFunctionsOptions" name="公式"/>
-            <FakeSelect svg='#icon-charutubiao' v-bind:changeHandle="chartSelect" v-bind:options="excelChartsOptions" name="插入图表"/>
-            <FakeSelect svg='#icon-shengchengtubiao' v-bind:changeHandle="chartSelectFull" v-bind:options="excelChartsOptions" name="自动生成图表"/>
+            <FakeSelect svg='#icon-charutubiao' v-bind:changeHandle="(v, i)=>chartSelect(v, i)" v-bind:options="excelChartsOptions" name="插入图表"/>
+            <FakeSelect svg='#icon-shengchengtubiao' v-bind:changeHandle="(v, i)=>chartSelect(v,i,true)" v-bind:options="excelChartsOptions" name="自动生成图表"/>
           </div>
         </div>
 
@@ -73,48 +73,35 @@
             :onChange="chartChange"
             >
           </Charts>
-          <div>
-            <span @click="saveChart">保存</span>
-            <span @click="cancelChart">取消</span>
+          <div class="chart-editor-controller">
+            <span class="save" @click="saveChart">保存</span>
+            <span class="cancel" @click="cancelChart">取消</span>
           </div>
         </div>
-
+        <!-- chart list -->
         <div class="charts" :class="{'display-block': !editorAble}">
           <div 
             class="chart-wrap" 
             v-for="(item, index) in chartOptionsSourse" 
             :key="index" 
-            :class="{ 'title-editing':titleEditingIndex === index }"
             @mouseenter = "()=>toggleChartsRange(item,true)"
             @mouseleave = "()=>toggleChartsRange(item,false)"
           >
-            <div class="chart-layer" @click="()=>quitChartEditor(index)"></div>
-              <div class="chart-title-editor" >
-                <input
-                  type="text" 
-                  :value="item.title" 
-                  autofocus
-                  maxlength="20"
-                  @keydown="e=>titleEditorKeydownHandle(e,index)"
-                  @input="chartTitleEditorCacheValue= $event.target.value"
-                />
-                <i class="el-icon-close" title="取消" @click="()=>quitChartEditor(index, false)"></i>
-                <i class="el-icon-check" title="保存" @click="e=>quitChartEditor(index, true)"></i>
-              </div>
-              <Charts 
-                :readonly="!editorAble"
-                :optionsSourse ="item"
-                :finishedHandle = "chartsFinishedHandle"
-              >
-              <!-- <Charts 
-                :readonly="!editorAble"
-                :optionsSourse ="item"
-                :changeHandle ="v=>chartControllerHandle(v,index)"
-                :chartsUnit = "excelCharts"
-                :finishedHandle = "chartsFinishedHandle"
-              > -->
-              </Charts>
+            <div class="chart-list-controller">
+              <span class="chart-list-editor">
+                编辑
+              </span>
+              <span class="chart-list-delete">
+                删除
+              </span>
             </div>
+            <Charts 
+              readonly
+              :optionsSourse ="item"
+              :finishedHandle = "chartsFinishedHandle"
+            >
+            </Charts>
+          </div>
         </div>
       </div>
     </section>
@@ -128,7 +115,7 @@ import Calculation from "@/util/Calculation.js";
 import handleObject from "@/util/handleObject";
 import "handsontable-pro/dist/handsontable.full.css";
 import FakeSelect from "./fakeSelect.vue";
-import { excelFunctions, excelCharts } from "./excelPlugins/excelStaticData";
+import { excelFunctions, excelCharts } from "./excelPlugins";
 import EchartsWrapper from "@/components/echartsWrapper.vue";
 import IEcharts from 'vue-echarts-v3/src/full.js';
 import Charts from '@/components/echartBox/chartControl.vue';
@@ -165,7 +152,7 @@ export default {
     var self = this;
     return {
       editingChart:{},
-      excelCharts:excelCharts,
+      cacheEditingChart:{},
       chartOptionsSourse: self.propTable.imgData?JSON.parse(self.propTable.imgData):[],
       excelFunctionsOptions: Object.keys(excelFunctions).map(ele => ({
         value: ele,
@@ -175,11 +162,9 @@ export default {
         value: ele,
         label: excelCharts[ele].name
       })),
-      titleEditingIndex:'',
       drawStep: [],
       chartStep: [],
       funcStore: {},
-      funcCache: "",
       visible: false,
       hot1: "",
       isEdit: false,
@@ -707,6 +692,8 @@ export default {
   },
 
   methods: {
+
+    // 图表编辑拖拽函数
     moveChartEditor(e){
       let x = e.clientX
       let y = e.clientY
@@ -733,15 +720,21 @@ export default {
       window.removeEventListener('mousemove', this.moveChartEditor)
       window.removeEventListener('mouseup', this.dropChartEditor)
     },
-    chartChange(){
-      console.log('chartChange')
+    chartChange(obj){
+      this.cacheEditingChart = obj
     },
     saveChart(){
-      this.chartOptionsSourse.push(this.editingChart)
+      this.chartOptionsSourse.push(this.cacheEditingChart)
       this.editingChart = {}
+      this.cacheEditingChart = {}
+      window.dragPosition = {};
+      window.cachePosition = false;
     },
     cancelChart(){
       this.editingChart = {}
+      this.cacheEditingChart = {}
+      window.dragPosition = {};
+      window.cachePosition = false;
     },
     chartDataUpDate(changes){
       this.chartOptionsSourse = this.chartOptionsSourse.map(ele=>{
@@ -785,7 +778,23 @@ export default {
 
       return data
     },
-    chartSelect(v, i) {
+    chartSelect(v, i, isFull) {
+      if(isFull){
+        this.editingChart ={
+          data: JSON.parse(this.getExcelData().tableData),
+          type: v,
+          title:'图表标题',
+          transpose: false,
+          range:'full'
+        };
+
+        // try{
+        //   sourseData.optionObj = excelCharts[v].func(sourseData)
+        // } catch (error){
+        //   console.log(error)
+        // }
+        //   this.editingChart = sourseData
+      }
       const selectRange = this.hot1[Symbol.for('lastSelected')]
       let data;
       if(selectRange.length>1){
@@ -817,100 +826,17 @@ export default {
         type: v,
         title:'图表标题',
         transpose: false,
-        range: selectRange,
+        range:selectRange,
         selectedRow: this.selectedRow,
-        optionObj:{},
       }
-      try{
-        sourseData.optionObj = excelCharts[v].func(sourseData)
-      } catch (error){
-        console.log(error)
-      }
+      // try{
+      //   sourseData.optionObj = excelCharts[v].func(sourseData)
+      // } catch (error){
+      //   console.log(error)
+      // }
         this.editingChart = sourseData
     },
-    chartSelectFull(v) {
-      this.editingChart ={
-        data: JSON.parse(this.getExcelData().tableData),
-        type: v,
-        title:'图表标题',
-        transpose: false,
-        range:'full'
-      }
-     try{
-        sourseData.optionObj = excelCharts[v].func(sourseData)
-      } catch (error){
-        console.log(error)
-      }
-        this.editingChart = sourseData
-    },
-    chartControllerHandle(v,index){
-      switch (v){
-        case 'transpose':
-          this.chartOptionsSourse.splice(index,1,{
-            ...this.chartOptionsSourse[index],
-            ...{transpose:!this.chartOptionsSourse[index].transpose}
-          } )
 
-        break
-        case 'editorTitle':
-          this.titleEditingIndex=index
-        break
-        case 'delete':
-          // this.$confirm(
-          //   this.$createElement('p',  {class:"confirm-message" }, [
-          //     this.$createElement('svg', null, [
-          //        this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
-          //     ]),
-          //     this.$createElement('span', null, '确定要删除该表格吗？')
-          //   ]),
-          //   {
-          //     confirmButtonText: "确定",
-          //     cancelButtonText: "取消"
-          //   }
-          // )
-          // .then(() => {
-            this.chartOptionsSourse.splice(index,1)
-          // })
-          // .catch(() => {
-          //   return false;
-          // });
-        break
-        default: 
-          console.log('chartControllerHandle error');
-      }
-    },
-    quitChartEditor(index, save){
-      if(save){
-        if(this.chartTitleEditorCacheValue.length === 0){
-          this.$alert(
-            this.$createElement('p',  {class:"confirm-message" }, [
-              this.$createElement('svg', null, [
-                this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
-              ]),
-              this.$createElement('span', null, '图表名称不能为空!')
-            ]),
-            "",
-            {
-              confirmButtonText: "确定"
-            }
-          );
-          return false
-        }
-        this.chartOptionsSourse.splice(index,1,{
-          ...this.chartOptionsSourse[index],
-          ...{title:this.chartTitleEditorCacheValue}
-        } )
-      }
-      this.titleEditingIndex = '';
-    },
-    titleEditorKeydownHandle(e,index){
-      if(e.keyCode===13){
-        this.quitChartEditor(index, true)
-      }
-      if(e.keyCode===27){
-        this.quitChartEditor(index)
-      }
-    },
     toggleChartsRange(item,show){
       if(!this.editorAble){
         return false
@@ -1068,13 +994,16 @@ export default {
     },
     drawCanvas() {
       const colorArr = [
-        "#71a1e6",
-        "#008000",
-        "#9900cc",
-        "#800000",
-        "#00cc33",
-        "#c60",
-        "#c09"
+        "rgb(83,189,231)",
+        "rgb(255,132,101)",
+        "rgb(58,201,168)",
+        "rgb(254,161,1)",
+        "rgb(255,189,173)",
+        "rgb(117,236,208)",
+        "rgb(255,207,124)",
+        "rgb(124,217,255)",
+        "rgb(207,164,255)",
+        "rgb(243,220,93)",
       ];
       let Canvas = this.canvasNode;
       Canvas.width = Canvas.clientWidth;
@@ -1082,10 +1011,10 @@ export default {
       let ctx = Canvas.getContext("2d");
       ctx.clearRect(0, 0, Canvas.width, Canvas.height);
       this.drawStep.forEach((ele, index) => {
-        ele.render(ctx, colorArr[index % 7]);
+        ele.render(ctx, colorArr[index % 10]);
       });
       this.chartStep.forEach((ele, index) => {
-        ele.render(ctx, colorArr[index % 7]);
+        ele.render(ctx, colorArr[index % 10]);
       });
     },
     drawInput(value, startEdit) {
@@ -1805,26 +1734,35 @@ td {
   -webkit-padding-end: 1px;
   span{
     border-radius: 6px;
-    &:nth-child(7n+1){
-      background: rgba(113,161,230,0.2);
+    &:nth-child(10n+1){
+      background: rgba(83,189,231,0.2);
     }
-    &:nth-child(7n+2){
-      background: rgba(0,128,0,0.2);
+    &:nth-child(10n+2){
+      background: rgba(255,132,101,0.2);
     }
-    &:nth-child(7n+3){
-      background: rgba(153,0,204,0.2);
+    &:nth-child(10n+3){
+      background: rgba(58,201,168,0.2);
     }
-    &:nth-child(7n+4){
-      background: rgba(128,0,0,0.2);
+    &:nth-child(10n+4){
+      background: rgba(254,161,1,0.2);
     }
-    &:nth-child(7n+5){
-      background: rgba(0,204,51,0.2);
+    &:nth-child(10n+5){
+      background: rgba(255,189,173,0.2);
     }
-    &:nth-child(7n+6){
-      background: rgba(204,102,0,0.2);
+    &:nth-child(10n+6){
+      background: rgba(117,236,208,0.2);
     }
-    &:nth-child(7n){
-      background: rgba(204,0,153,0.2);
+    &:nth-child(10n+7){
+      background: rgba(255,207,124,0.2);
+    }
+    &:nth-child(10n+8){
+      background: rgba(124,217,255,0.2);
+    }
+    &:nth-child(10n+9){
+      background: rgba(207,164,255,0.2);
+    }
+    &:nth-child(10n){
+      background: rgba(255,243,114,0.2);
     }
   }
 }
@@ -1837,6 +1775,11 @@ td {
     .chart-wrap{
       margin: 18px auto 0 !important;
     }
+  }
+  .chart-list-controller{
+    position:absolute;
+    right:0;
+    display:inline-block;
   }
 }
 .chart-wrap{
@@ -1851,76 +1794,6 @@ td {
   position: relative;
   &:nth-child(odd){
     margin-right: 20px;
-  }
-  .chart-layer{
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 2;
-    display: none;
-  }
-  .chart-title-editor{
-    position: absolute;
-    opacity: 0;
-    top: 10px;
-    width: 60%;
-    left: 0;
-    right: 0;
-    display: block;
-    margin: auto;
-    z-index: 3;
-    transform: translate(0,-80%);
-    display: flex;
-    align-items: center;
-    input{
-      -webkit-appearance: none;
-      background-color: rgb(255, 255, 255);
-      background-image: none;
-      box-sizing: border-box;
-      color: rgb(31, 45, 61);
-      display: inline-block;
-      font-size: inherit;
-      height: 36px;
-      line-height: 1;
-      width: 100%;
-      border-radius: 4px;
-      border: 1px solid rgb(191, 203, 217);
-      border-image: initial;
-      outline: none;
-      padding: 3px 10px;
-      transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
-      &:focus{
-        outline: none;
-        border-color: rgb(32, 160, 255);
-      }
-    }
-    .el-icon-close, .el-icon-check{
-      width: 36px;
-      height: 36px;
-      display: inline-block;
-      margin: 0 5px;
-      line-height: 36px;
-      cursor: pointer;
-      color: #06aea6;
-    }
-    .el-icon-close{
-      color: #aaa;
-    }
- 
-  }
-  &.title-editing{
-    .chart-layer{
-      display: block;
-    }
-    .chart-title-editor{
-      opacity: 1;
-      transform: translate(0,0);
-      transition: 0.6s;
-      
-    }
   }
 }
 .confirm-message{
@@ -1963,16 +1836,50 @@ td {
 
 
 .chart-editor{
-  opacity: 0.8;
+  -webkit-user-select: none;  
+  -moz-user-select: none;  
+  -ms-user-select: none; 
+  background:rgb(255,255,255);
+  opacity: 1;
   position: fixed;
   top: 50%;
   left: 50%;
   margin-left: -240px;
   margin-top: -150px;
   width: 480px;
-  height: 300px;
-  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
-  cursor: all-scroll;
-  z-index: 200;
+  box-shadow: 0 0 5px rgba(6,174,166, 0.6);
+  z-index: 1001;
+  border: 1px solid rgb(6,174,166);
+  .charts-box{
+    height: 300px;
+  }
+  .chart-editor-controller{
+    span{
+      box-sizing: border-box;
+      border-radius: 2px;
+      padding: 5px 20px;
+      display: inline-block;
+      color:#fff;
+      background-color: #06aea6;
+      border:1px solid #06aea6;
+      margin: 20px 0;
+      cursor: pointer;
+      &:hover{
+        background: rgb(56, 190, 184);
+        border-color: rgb(56, 190, 184);
+        color: #fff;
+      }
+    }
+    .cancel{
+      background: #fff;
+      border-color: #c4c4c4;
+      color: #1f2d3d;
+      &:hover{
+        background: #fff;
+        border-color: rgb(56, 190, 184);
+        color: #06aea6;
+      }
+    }
+  }
 }
 </style>

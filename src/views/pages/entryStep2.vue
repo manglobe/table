@@ -8,7 +8,7 @@
 			<!-- <span class="step" @click="confirmGotoStep(4)"><span class="arrow"></span>4、分析结果</span> -->
 		</div>
 		<div class="button-wrapper">
-        <div class="creat-excel-btn">
+        <div class="create-excel-btn">
           <el-button @click="addTable">
               <i 
               style="font-size:16px;margin-right:10px"
@@ -326,7 +326,7 @@ export default {
 // }
 
 .button-wrapper {
-  .creat-excel-btn {
+  .create-excel-btn {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -335,7 +335,7 @@ export default {
     border: none;
 
     button {
-      background: #06aea6;
+      background: #3AC9A8;
       border: none;
       border-radius: 0;
       color: #fff;

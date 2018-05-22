@@ -16,7 +16,7 @@
 		<div class="entry-step entry-step-1">
 			<div class="qulity-form">
 		    	<div class="input-wrap" style="margin-right: 25px;">
-					<span class="title2"><span class="required">* </span>楼层：</span>
+					<span class="title2">楼层：</span>
 		    		<el-select 
 						class="large-input"
 						v-model="oldBaseInfo.floorId" 
@@ -37,7 +37,7 @@
 					</transition>
 				</div>
 				<div class="input-wrap">
-					<span class="title2"><span class="required">* </span>专科：</span>
+					<span class="title2">专科：</span>
 		    		<el-select 
 							  class="large-input"
 					  v-model="oldBaseInfo.departmentId" 
@@ -173,7 +173,7 @@
 						<span v-else style='color: #ccc;'>根据分母自动生成</span>
 					</span>
 					</div>
-					<span style="font-size: 20px;vertical-align: middle;line-height:30px;color:#f36969">*</span>
+					<span style="font-size: 20px;">*</span>
  
 					<div style="position: relative; display: inline-block;margin: 0 15px;">
 						<el-input
@@ -238,8 +238,6 @@ export default {
         }
       ],
       validate: {
-        floorId: false,
-        departmentId: false,
         quotaName: false,
         quotaTypeId: false,
         molecular: false,
@@ -288,8 +286,6 @@ export default {
     },
     gotoStep(num) {
       this.validate = {
-        floorId: this.$validate.value(this.oldBaseInfo.floorId),
-        departmentId: this.$validate.value(this.oldBaseInfo.departmentId),
         quotaName: this.$validate.string(this.oldBaseInfo.quotaName),
         quotaTypeId: this.$validate.value(this.oldBaseInfo.quotaTypeId),
         quotaDefinitions: this.$validate.array(
@@ -456,6 +452,7 @@ export default {
     // flex-direction: column;
     justify-content: flex-start !important;
     flex-wrap: wrap;
+    align-items: center;
     .definition-item {
       width: 100%;
     }

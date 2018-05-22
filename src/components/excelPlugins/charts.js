@@ -1,50 +1,4 @@
-// A1:B2 => [A1,A2,B1,B2]
-const disposeRange = rangeStr => {
-  let arr = rangeStr.toUpperCase().match(/([A-Z]+|[0-9]+)/g)
-  let rowStart = arr[1]
-  let colStart = arr[0].charCodeAt(0)
-  let rowEnd = arr[3]
-  let colEnd = arr[2].charCodeAt(0)
 
-  let rowArr = Array.from({
-    length: rowEnd - rowStart + 1
-  }, (val, index) => +rowStart + index);
-  let colArr = Array.from({
-    length: colEnd - colStart + 1
-  }, (val, index) => String.fromCharCode(+colStart + index));
-
-  let rangeArr = []
-
-  rowArr.forEach(rowEle => {
-    colArr.forEach(colEle => {
-      rangeArr.push(colEle + rowEle)
-    })
-  })
-
-  return rangeArr
-}
-
-export const excelFunctions = {
-  SUM: {
-    name: '求和',
-    func(valueStr) {
-      let newStr = valueStr.replace(/sum/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
-        return `(${disposeRange(match).join('+')})`
-      }).replace(/,/g, '+');
-      return newStr
-    }
-  },
-  AVERAGE: {
-    name: '求平均数',
-    func(valueStr) {
-      let midStr = valueStr.replace(/AVERAGE/i, '').replace(/[a-z]+\d+\:[a-z]+\d+/gi, (match) => {
-        return `(${disposeRange(match).join(',')})`
-      });
-      let newStr = midStr.replace(/,/g, '+');
-      return `(${newStr}/${midStr.split(',').length})`
-    }
-  },
-}
 const transpose = (matrix) => {
   return matrix[0].map((ele, index) => {
     let newArr = [];
@@ -71,12 +25,6 @@ const checkData = data => {
       }
     }
   }
-  // if (others.length > 0) {
-  //   return {
-  //     type: 'error',
-  //     msg: '您选中的单元格包含了不合法的字符，请确保除首行首列外，其余的单元格均为数字或百分数'
-  //   }
-  // }
   if (numbers.length === 0) {
     return {
       type: 'precent',
@@ -109,11 +57,16 @@ const chartDataFilter = dataSourse => {
   let column = filtedData.map(ele => ele[0]);
   let row = filtedData[0];
   let data = filtedData;
+  let xAxisLength = 0;
+  let yAxisLength = 0;
+
 
   if(filtedData[0][0] === ''|| filtedData[0][0] === null){
     data = data.slice(1).map(ele => ele.slice(1))
     row = row.slice(1)    
     column = column.slice(1)
+    xAxisLength = 1
+    yAxisLength = 1
   }else{
     if(!isDataType(row[row.length-1])){
       column = column.slice(1)
@@ -134,11 +87,8 @@ const chartDataFilter = dataSourse => {
     }
   }
   data= data.map(ele=>ele.map(ele2=>(ele2==='' || ele2===null) ? 0 : ele2))
-  const checkResult = checkData(data)
-  if (checkResult.type === 'error') {
-    return checkResult.msg
-  }
 
+  const checkResult = checkData(data)
   return {
     column,
     row,
@@ -151,22 +101,40 @@ const chartDataFilter = dataSourse => {
     type: checkResult.type
   }
 }
+
 import echarts from 'echarts';
-export const excelCharts = {
+
+const excelCharts = {
   line: {
     name: '折线图',
     func(dataSourse) {
       let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
+
+        if(dataSourse.legend){
+            const legends = dataSourse.legend.split(';')
+            filtedData.column = filtedData.column.map((ele,index)=> legends[index]||'')
+        }
+
+        if(dataSourse.xAxis){
+            const xAxises = dataSourse.xAxis.split(';')
+            filtedData.row = filtedData.row.map((ele,index)=> xAxises[index]||'')
+        }
+
       return {
         title: {
           top: 10,
           left: 'center',
           text: dataSourse.title,
+          textStyle:{
+              fontWeight:'normal',
+              fontSize:16,
+              color:'#333',
+          }
         },
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data: filtedData.column.map(ele=>ele.substr(0,19)),
+          data:  filtedData.column.map(ele=>ele.substr(0,19)),
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
           },
@@ -192,33 +160,89 @@ export const excelCharts = {
             }
           },
         },
-        yAxis: {
-          type: 'value',
-          axisLabel: {
-            formatter: function (val) {
-              if(filtedData.type === 'precent'){
-                return val * 100 + '%';
-              } 
-              return val
-            }
-          },
-          axisPointer: {
-              label: {
-                  formatter: function (params) {
-                    return (params.value * 100).toFixed(2) + '%';
+        yAxis: dataSourse.secLegends&&dataSourse.secLegends.length>0?[
+            {
+                type: 'value',
+                axisLabel: {
+                    formatter: function (val) {
                     if(filtedData.type === 'precent'){
-                      return (params.value  * 100).toFixed(2) + '%';
+                        return val * 100 + '%';
                     } 
-                    return params
-                  }
-              }
-          }
-        },
-        series: filtedData.data.map((ele, index) => ({
+                    return val
+                    }
+                },
+                axisPointer: {
+                    label: {
+                        formatter: function (params) {
+                            return (params.value * 100).toFixed(2) + '%';
+                            if(filtedData.type === 'precent'){
+                            return (params.value  * 100).toFixed(2) + '%';
+                            } 
+                            return params
+                        }
+                    }
+                }
+            },
+            {
+                type: 'value',
+                axisLabel: {
+                    formatter: function (val) {
+                    if(filtedData.type === 'precent'){
+                        return val * 100 + '%';
+                    } 
+                    return val
+                    }
+                },
+                axisPointer: {
+                    label: {
+                        formatter: function (params) {
+                            return (params.value * 100).toFixed(2) + '%';
+                            if(filtedData.type === 'precent'){
+                            return (params.value  * 100).toFixed(2) + '%';
+                            } 
+                            return params
+                        }
+                    }
+                }
+            }
+        ]:{
+            type: 'value',
+            axisLabel: {
+                formatter: function (val) {
+                if(filtedData.type === 'precent'){
+                    return val * 100 + '%';
+                } 
+                return val
+                }
+            },
+            axisPointer: {
+                label: {
+                    formatter: function (params) {
+                        return (params.value * 100).toFixed(2) + '%';
+                        if(filtedData.type === 'precent'){
+                        return (params.value  * 100).toFixed(2) + '%';
+                        } 
+                        return params
+                    }
+                }
+            }
+            },
+        series:filtedData.data.map((ele, index) => ({
           data: ele,
           type: 'line',
-          name: filtedData.column[index]?filtedData.column[index].substr(0,19):''
-        }))
+          name: filtedData.column[index]?filtedData.column[index].substr(0,19):'',
+          yAxisIndex: dataSourse.secLegends&&dataSourse.secLegends.includes(filtedData.column[index])?1:0
+        })),
+        color: ["rgb(83,189,231)",
+        "rgb(255,132,101)",
+        "rgb(58,201,168)",
+        "rgb(254,161,1)",
+        "rgb(255,189,173)",
+        "rgb(117,236,208)",
+        "rgb(255,207,124)",
+        "rgb(124,217,255)",
+        "rgb(207,164,255)",
+        "rgb(243,220,93)"]
       }
     }
   },
@@ -261,7 +285,51 @@ export const excelCharts = {
             }
           },
         }],
-        yAxis: [{
+        yAxis: dataSourse.secLegends&&dataSourse.secLegends.length>0?
+        [{
+          type: 'value',
+          axisLabel: {
+            formatter: function (val) {
+              if(filtedData.type === 'precent'){
+                return val * 100 + '%';
+              } 
+              return val
+            }
+          },
+          axisPointer: {
+              label: {
+                  formatter: function (params) {
+                    return (params.value * 100).toFixed(2) + '%';
+                    if(filtedData.type === 'precent'){
+                      return (params.value  * 100).toFixed(2) + '%';
+                    } 
+                    return params
+                  }
+              }
+          }
+        },{
+          type: 'value',
+          axisLabel: {
+            formatter: function (val) {
+              if(filtedData.type === 'precent'){
+                return val * 100 + '%';
+              } 
+              return val
+            }
+          },
+          axisPointer: {
+              label: {
+                  formatter: function (params) {
+                    return (params.value * 100).toFixed(2) + '%';
+                    if(filtedData.type === 'precent'){
+                      return (params.value  * 100).toFixed(2) + '%';
+                    } 
+                    return params
+                  }
+              }
+          }
+        }]
+        :[{
           type: 'value',
           axisLabel: {
             formatter: function (val) {
@@ -283,10 +351,11 @@ export const excelCharts = {
               }
           }
         }],
-        series: filtedData.data.map((ele, index) => ({
+        series:filtedData.data.map((ele, index) => ({
           data: ele,
           type: 'bar',
-          name: filtedData.column[index]?filtedData.column[index].substr(0,19):''
+          name: filtedData.column[index]?filtedData.column[index].substr(0,19):'',
+          yAxisIndex: dataSourse.secLegends&&dataSourse.secLegends.includes(filtedData.column[index])?1:0
         }))
       };
     }
@@ -454,10 +523,7 @@ export const excelCharts = {
       }
     }
   },
-  // diy: {
-  //   name: '自定义',
-  //   func() {
-  //     console.log(arguments)
-  //   }
-  // },
 }
+
+
+export default excelCharts;

@@ -1,5 +1,5 @@
 <template>
-<div ref='box' class="charts-display" :data-option = "options"></div>
+  <div ref='box' class="charts-display" :data-option = "options"></div>
 </template>
 <script>
 import echarts from 'echarts';
@@ -41,7 +41,7 @@ export default {
   },
   beforeUpdate(){
     this.chart.clear();
-    this.chart.setOption({...this.options,...{animation:false}});
+    this.chart.setOption(this.options);
   },
 }
 </script>
