@@ -72,7 +72,7 @@ export default {
       },
       onChange:{
         type: Function,
-      }
+      },
   },
   data(){
       return {
@@ -117,19 +117,9 @@ export default {
       }
   },
   computed:{
-    // options:function(){
-    //   let optionObj = {}
-    // //   try {
-    // //     optionObj = this.optionsSourse.optionObj ||this.chartsUnit[this.optionsSourse.type].func(
-    // //       this.optionsSourse
-    // //     )
-    // //   } catch (error) {
-    // //     console.error(error)
-    // //   }
-    //   return this.optionsSourse.optionObj || {}
-    // }
     options: function(){
-      return excelCharts[this.cacheOptionsSourse.type].func(this.cacheOptionsSourse)
+      const chartDatas = excelCharts[this.cacheOptionsSourse.type].func(this.cacheOptionsSourse)
+      return chartDatas
     },
     legends: function(){
       return this.options.legend.data
@@ -141,13 +131,15 @@ export default {
         case 'legend':
           return this.options.legend.data.join(';')
         case 'xAxis':
-          return this.options.xAxis.data.join(';')
+          return this.options.xAxis.data?this.options.xAxis.data.join(';'):this.options.xAxis[0].data.join(';')
       }
     }
   },
   watch:{
+    optionsSourse:function(newQuestion, oldQuestion){
+      this.cacheOptionsSourse = newQuestion
+    },
     cacheOptionsSourse:function(newQuestion, oldQuestion){
-      console.log('watch:', newQuestion)
       this.onChange&&this.onChange(newQuestion)
     },
     checkedLegends: function(newQuestion, oldQuestion){
@@ -163,17 +155,16 @@ export default {
     clickHandle(e,val){
       e.stopPropagation();
       this[val]();
-      // this.onChange(this.options)
     },
 
     // 转置
     transpose(){
-      // this.onChange({
-      //   transpose: !this.optionsSourse.transpose
-      // })
       this.cacheOptionsSourse= {
         ...this.cacheOptionsSourse,
-        ...{transpose : !this.cacheOptionsSourse.transpose}
+        ...{transpose : !this.cacheOptionsSourse.transpose,
+            legend: undefined,
+            xAxis: undefined,
+        }
       }
     },
 
@@ -252,7 +243,6 @@ export default {
       this.showLayer = true
       this.showLegendEditor = true
       this.editingType = 'legend'
-
     },
     quiteLegendEditor(save){
       if(save&&this.chartEditorCacheValue){
@@ -307,6 +297,7 @@ export default {
       height:100%;
       text-align:left;
       position: relative;
+      overflow: hidden;
     .charts-display,canvas{
       width:100%;
       height:100%;
@@ -329,10 +320,9 @@ export default {
       width: 60%;
       left: 0;
       right: 0;
-      display: block;
       margin: auto;
       z-index: 3;
-      transform: translate(0,-80%);
+      transform: translate(0,-150%);
       display: flex;
       align-items: center;
       flex-wrap:wrap;
@@ -379,6 +369,7 @@ export default {
     }
     &.title-editing{
       .chart-layer-editor{
+        display: flex;
         opacity: 1;
         transform: translate(0,0);
         transition: 0.6s;
@@ -386,6 +377,7 @@ export default {
     }
     &.legend-editing{
        .chart-layer-editor{
+        display: flex;
         opacity: 1;
         transform: translate(0,-50%);
         transition: 0.6s;
@@ -399,6 +391,7 @@ export default {
     }
     &.xAxis-editing{
       .chart-layer-editor{
+        display: flex;
         opacity: 1;
         transform: translate(0,-50%);
         transition: 0.6s;

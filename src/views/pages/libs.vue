@@ -98,6 +98,13 @@
 				<el-table-column type="selection" width="50"></el-table-column>
 				<el-table-column label="序列" type="index" width="70"></el-table-column>
 				<el-table-column prop="quotaName" label="指标名称">
+            <template scope="scope">
+              <router-link 
+                :to="{name: 'preview', query: '{quotaId: scope.row.quotaId}'}"
+                target='_blank'>
+                {{scope.row.name}}
+						  </router-link>
+            </template>
 				</el-table-column>
 				<el-table-column prop="userName" label="录入人员">
 				</el-table-column>
@@ -119,7 +126,7 @@
 						</el-button>                   
 						<router-link 
 						style="margin-left: 10px;color: #06aea6;text-decoration: none;"
-						:to="{name: 'preview', query: {quotaId: scope.row.quotaId}}"
+						:to="{name: 'preview', query: '{quotaId: scope.row.quotaId}'}"
 						target='_blank'>
 						预览
 						</router-link>
@@ -423,6 +430,7 @@ export default {
   }
 }
 .pdf-export{
+  pointer-events: none;
   margin-right: 20px !important;
   cursor: not-allowed;
 }

@@ -6,15 +6,11 @@
           unique-opened           
           router>
             <el-menu-item index="/indicator/entr" @click="initItem">
-                <svg  class="svg" aria-hidden="true">
-                    <use xlink:href="#icon-icon-luruzhibiao"></use>
-                </svg>
+                <span class="iconfont">&#xe620;</span>                 
                 指标录入
             </el-menu-item>
             <el-menu-item index="/indicator/libs">
-                <svg  class="svg" aria-hidden="true">
-                    <use xlink:href="#icon-icon-zhibiaoku"></use>
-                </svg>
+                <span class="iconfont">&#xe61f;</span>
                 指标库
             </el-menu-item>
 		</el-menu>
@@ -52,13 +48,14 @@
         top: 76px;
         bottom:0;
         box-shadow: 0 1px 4px 0 hsla(0,0%,79%,.5);
-        .svg{
+        .iconfont{
             width: 18px;
             height: 18px;
             vertical-align: middle;
             position: relative;
             top: -2px;
             margin-right: 10px;
+            font-size: 18px;
         }
         .el-menu {
             height: 100%;

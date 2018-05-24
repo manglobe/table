@@ -1,4 +1,3 @@
-
 const transpose = (matrix) => {
   return matrix[0].map((ele, index) => {
     let newArr = [];
@@ -35,106 +34,121 @@ const checkData = data => {
   }
 }
 
-const chartDataFilter = dataSourse => {
-  let filtedData = dataSourse.filter(ele => ele.join('') !== '');
-  if(filtedData.length === 0){
+const chartDataFilter = (dataSourse, isTranspose) => {
+  let filtedData = dataSourse.data.filter(ele => ele.join('') !== '');
+  if (filtedData.length === 0) {
     return {
-      column:[],
-      row:[],
-      data:[],
+      column: [],
+      row: [],
+      data: [],
     }
   }
   filtedData = transpose(transpose(filtedData).filter(ele => ele.join('') !== ''))
 
-  const isDataType = value=>/^\d+(\.\d+)?%?$/.test(String(value));
+  const isDataType = value => /^\d+(\.\d+)?%?$/.test(String(value));
 
   // 去除标题行
 
-  if(!isDataType(filtedData[0][filtedData[0].length-1])&&!isDataType(filtedData[1][filtedData[1].length-1])){
+  if (!isDataType(filtedData[0][filtedData[0].length - 1]) && !isDataType(filtedData[1][filtedData[1].length - 1])) {
     filtedData = filtedData.slice(1)
   }
-  
+
   let column = filtedData.map(ele => ele[0]);
   let row = filtedData[0];
   let data = filtedData;
-  let xAxisLength = 0;
-  let yAxisLength = 0;
 
-
-  if(filtedData[0][0] === ''|| filtedData[0][0] === null){
+  if (filtedData[0][0] === '' || filtedData[0][0] === null) {
     data = data.slice(1).map(ele => ele.slice(1))
-    row = row.slice(1)    
+    row = row.slice(1)
     column = column.slice(1)
-    xAxisLength = 1
-    yAxisLength = 1
-  }else{
-    if(!isDataType(row[row.length-1])){
+  } else {
+    if (!isDataType(row[row.length - 1])) {
       column = column.slice(1)
       data = data.slice(1)
-      if(!isDataType(column[column.length-1])){
+
+      if (!isDataType(column[column.length - 1])) {
         row = row.slice(1)
         data = data.map(ele => ele.slice(1))
-      }else{
+      } else {
         column = column.map((ele, index) => `系列${index+1}`)
       }
-    }else{
-      if(!isDataType(column[column.length-1])){
+    } else {
+      if (!isDataType(column[column.length - 1])) {
         row = row.slice(1)
         data = data.map(ele => ele.slice(1))
-      }else{
+      } else {
         column = column.map((ele, index) => `系列${index+1}`)
       }
     }
   }
-  data= data.map(ele=>ele.map(ele2=>(ele2==='' || ele2===null) ? 0 : ele2))
+  data = data.map(ele1 => ele1.map(ele => {
+    ele = (ele === '' || ele === null) ? 0 : ele
+    if (/%$/.test(ele)) {
+      return ele.replace(/%/, '') / 100
+    }
+    return ele
+  }));
 
   const checkResult = checkData(data)
-  return {
-    column,
-    row,
-    data: data.map(ele1=>ele1.map(ele=>{
-      if(/%$/.test(ele)){
-        return ele.replace(/%/,'')/100
-      }
-      return ele
-    })),
-    type: checkResult.type
+  let returnData = {
+    column: isTranspose ? row : column,
+    row: isTranspose ? column : row,
+    data: isTranspose ? transpose(data) : data,
+    type: checkResult.type,
   }
+  if (dataSourse.legend) {
+    const legends = dataSourse.legend.split(';')
+    returnData.column = returnData.column.map((ele, index) => legends[index] || ' ')
+  }
+
+  if (dataSourse.xAxis) {
+    const xAxises = dataSourse.xAxis.split(';')
+    returnData.row = returnData.row.map((ele, index) => xAxises[index] || ' ')
+  }
+
+  return returnData
+
+  
 }
 
 import echarts from 'echarts';
 
+const publicConfig = (dataSourse) => ({
+  title: {
+    top: 10,
+    left: 'center',
+    text: dataSourse.title,
+    textStyle: {
+      fontWeight: 'normal',
+      fontSize: 16,
+      color: '#333',
+    }
+  },
+  color: ["rgb(83,189,231)",
+    "rgb(255,132,101)",
+    "rgb(58,201,168)",
+    "rgb(254,161,1)",
+    "rgb(255,189,173)",
+    "rgb(117,236,208)",
+    "rgb(255,207,124)",
+    "rgb(124,217,255)",
+    "rgb(207,164,255)",
+    "rgb(243,220,93)"
+  ],
+
+})
 const excelCharts = {
   line: {
     name: '折线图',
     func(dataSourse) {
-      let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
-
-        if(dataSourse.legend){
-            const legends = dataSourse.legend.split(';')
-            filtedData.column = filtedData.column.map((ele,index)=> legends[index]||'')
-        }
-
-        if(dataSourse.xAxis){
-            const xAxises = dataSourse.xAxis.split(';')
-            filtedData.row = filtedData.row.map((ele,index)=> xAxises[index]||'')
-        }
+      let filtedData = chartDataFilter(dataSourse, dataSourse.transpose)
 
       return {
-        title: {
-          top: 10,
-          left: 'center',
-          text: dataSourse.title,
-          textStyle:{
-              fontWeight:'normal',
-              fontSize:16,
-              color:'#333',
-          }
-        },
+        ...publicConfig(dataSourse),
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data:  filtedData.column.map(ele=>ele.substr(0,19)),
+          data: filtedData.column.map(ele => ele.substr(0, 19)),
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
           },
@@ -144,8 +158,8 @@ const excelCharts = {
         },
         tooltip: {
           trigger: 'axis',
-          formatter: function(params){
-            return params.map(ele=>`
+          formatter: function (params) {
+            return params.map(ele => `
               <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${ele.color};"></span>
               ${ele.seriesName||''}: ${filtedData.type === 'precent'?(ele.data * 100).toFixed(2) + '%':ele.data}`).join('<br/>')
           }
@@ -156,110 +170,96 @@ const excelCharts = {
           data: filtedData.row,
           axisLabel: {
             formatter: function (val) {
-              return val === 'null' ? '' : val.substr(0,19)
+              return val === 'null' ? '' : val.substr(0, 19)
             }
           },
         },
-        yAxis: dataSourse.secLegends&&dataSourse.secLegends.length>0?[
-            {
-                type: 'value',
-                axisLabel: {
-                    formatter: function (val) {
-                    if(filtedData.type === 'precent'){
-                        return val * 100 + '%';
-                    } 
-                    return val
-                    }
-                },
-                axisPointer: {
-                    label: {
-                        formatter: function (params) {
-                            return (params.value * 100).toFixed(2) + '%';
-                            if(filtedData.type === 'precent'){
-                            return (params.value  * 100).toFixed(2) + '%';
-                            } 
-                            return params
-                        }
-                    }
-                }
-            },
-            {
-                type: 'value',
-                axisLabel: {
-                    formatter: function (val) {
-                    if(filtedData.type === 'precent'){
-                        return val * 100 + '%';
-                    } 
-                    return val
-                    }
-                },
-                axisPointer: {
-                    label: {
-                        formatter: function (params) {
-                            return (params.value * 100).toFixed(2) + '%';
-                            if(filtedData.type === 'precent'){
-                            return (params.value  * 100).toFixed(2) + '%';
-                            } 
-                            return params
-                        }
-                    }
-                }
-            }
-        ]:{
+        yAxis: dataSourse.secLegends && dataSourse.secLegends.length > 0 ? [{
             type: 'value',
             axisLabel: {
-                formatter: function (val) {
-                if(filtedData.type === 'precent'){
-                    return val * 100 + '%';
-                } 
-                return val
+              formatter: function (val) {
+                if (filtedData.type === 'precent') {
+                  return val * 100 + '%';
                 }
+                return val
+              }
             },
             axisPointer: {
-                label: {
-                    formatter: function (params) {
-                        return (params.value * 100).toFixed(2) + '%';
-                        if(filtedData.type === 'precent'){
-                        return (params.value  * 100).toFixed(2) + '%';
-                        } 
-                        return params
-                    }
+              label: {
+                formatter: function (params) {
+                  return (params.value * 100).toFixed(2) + '%';
+                  if (filtedData.type === 'precent') {
+                    return (params.value * 100).toFixed(2) + '%';
+                  }
+                  return params
                 }
+              }
             }
+          },
+          {
+            type: 'value',
+            axisLabel: {
+              formatter: function (val) {
+                if (filtedData.type === 'precent') {
+                  return val * 100 + '%';
+                }
+                return val
+              }
             },
-        series:filtedData.data.map((ele, index) => ({
+            axisPointer: {
+              label: {
+                formatter: function (params) {
+                  return (params.value * 100).toFixed(2) + '%';
+                  if (filtedData.type === 'precent') {
+                    return (params.value * 100).toFixed(2) + '%';
+                  }
+                  return params
+                }
+              }
+            }
+          }
+        ] : {
+          type: 'value',
+          axisLabel: {
+            formatter: function (val) {
+              if (filtedData.type === 'precent') {
+                return val * 100 + '%';
+              }
+              return val
+            }
+          },
+          axisPointer: {
+            label: {
+              formatter: function (params) {
+                return (params.value * 100).toFixed(2) + '%';
+                if (filtedData.type === 'precent') {
+                  return (params.value * 100).toFixed(2) + '%';
+                }
+                return params
+              }
+            }
+          }
+        },
+        series: filtedData.data.map((ele, index) => ({
           data: ele,
           type: 'line',
-          name: filtedData.column[index]?filtedData.column[index].substr(0,19):'',
-          yAxisIndex: dataSourse.secLegends&&dataSourse.secLegends.includes(filtedData.column[index])?1:0
+          name: filtedData.column[index] ? filtedData.column[index].substr(0, 19) : '',
+          yAxisIndex: dataSourse.secLegends && dataSourse.secLegends.includes(filtedData.column[index]) ? 1 : 0
         })),
-        color: ["rgb(83,189,231)",
-        "rgb(255,132,101)",
-        "rgb(58,201,168)",
-        "rgb(254,161,1)",
-        "rgb(255,189,173)",
-        "rgb(117,236,208)",
-        "rgb(255,207,124)",
-        "rgb(124,217,255)",
-        "rgb(207,164,255)",
-        "rgb(243,220,93)"]
       }
     }
   },
   bar: {
     name: '柱状图（簇形）',
     func(dataSourse) {
-      let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
+      let filtedData = chartDataFilter(dataSourse, dataSourse.transpose)
+
       return {
-        title: {
-          top: 10,
-          left: 'center',
-          text: dataSourse.title,
-        },
+        ...publicConfig(dataSourse),
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data: filtedData.column.map(ele=>ele.substr(0,19)),
+          data: filtedData.column.map(ele => ele.substr(0, 19)),
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
           },
@@ -269,8 +269,8 @@ const excelCharts = {
         },
         tooltip: {
           trigger: 'axis',
-          formatter: function(params){
-            return params.map(ele=>`
+          formatter: function (params) {
+            return params.map(ele => `
               <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${ele.color};"></span>
               ${ele.seriesName||''}: ${filtedData.type === 'precent'?(ele.data * 100).toFixed(2) + '%':ele.data}`).join('<br/>')
           }
@@ -281,81 +281,79 @@ const excelCharts = {
           data: filtedData.row,
           axisLabel: {
             formatter: function (val) {
-              return val === 'null' ? '' : val.substr(0,19)
+              return val === 'null' ? '' : val.substr(0, 19)
             }
           },
         }],
-        yAxis: dataSourse.secLegends&&dataSourse.secLegends.length>0?
-        [{
+        yAxis: dataSourse.secLegends && dataSourse.secLegends.length > 0 ? [{
           type: 'value',
           axisLabel: {
             formatter: function (val) {
-              if(filtedData.type === 'precent'){
+              if (filtedData.type === 'precent') {
                 return val * 100 + '%';
-              } 
+              }
               return val
             }
           },
           axisPointer: {
-              label: {
-                  formatter: function (params) {
-                    return (params.value * 100).toFixed(2) + '%';
-                    if(filtedData.type === 'precent'){
-                      return (params.value  * 100).toFixed(2) + '%';
-                    } 
-                    return params
-                  }
+            label: {
+              formatter: function (params) {
+                return (params.value * 100).toFixed(2) + '%';
+                if (filtedData.type === 'precent') {
+                  return (params.value * 100).toFixed(2) + '%';
+                }
+                return params
               }
+            }
           }
-        },{
+        }, {
           type: 'value',
           axisLabel: {
             formatter: function (val) {
-              if(filtedData.type === 'precent'){
+              if (filtedData.type === 'precent') {
                 return val * 100 + '%';
-              } 
+              }
               return val
             }
           },
           axisPointer: {
-              label: {
-                  formatter: function (params) {
-                    return (params.value * 100).toFixed(2) + '%';
-                    if(filtedData.type === 'precent'){
-                      return (params.value  * 100).toFixed(2) + '%';
-                    } 
-                    return params
-                  }
+            label: {
+              formatter: function (params) {
+                return (params.value * 100).toFixed(2) + '%';
+                if (filtedData.type === 'precent') {
+                  return (params.value * 100).toFixed(2) + '%';
+                }
+                return params
               }
+            }
           }
-        }]
-        :[{
+        }] : [{
           type: 'value',
           axisLabel: {
             formatter: function (val) {
-              if(filtedData.type === 'precent'){
+              if (filtedData.type === 'precent') {
                 return val * 100 + '%';
-              } 
+              }
               return val
             }
           },
           axisPointer: {
-              label: {
-                  formatter: function (params) {
-                    return (params.value * 100).toFixed(2) + '%';
-                    if(filtedData.type === 'precent'){
-                      return (params.value  * 100).toFixed(2) + '%';
-                    } 
-                    return params
-                  }
+            label: {
+              formatter: function (params) {
+                return (params.value * 100).toFixed(2) + '%';
+                if (filtedData.type === 'precent') {
+                  return (params.value * 100).toFixed(2) + '%';
+                }
+                return params
               }
+            }
           }
         }],
-        series:filtedData.data.map((ele, index) => ({
+        series: filtedData.data.map((ele, index) => ({
           data: ele,
           type: 'bar',
-          name: filtedData.column[index]?filtedData.column[index].substr(0,19):'',
-          yAxisIndex: dataSourse.secLegends&&dataSourse.secLegends.includes(filtedData.column[index])?1:0
+          name: filtedData.column[index] ? filtedData.column[index].substr(0, 19) : '',
+          yAxisIndex: dataSourse.secLegends && dataSourse.secLegends.includes(filtedData.column[index]) ? 1 : 0
         }))
       };
     }
@@ -363,47 +361,32 @@ const excelCharts = {
   pie: {
     name: '饼图',
     func(dataSourse) {
-      let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
+      let filtedData = chartDataFilter(dataSourse, dataSourse.transpose)
       return {
-        title: {
-          top: 10,
-          left: 'center',
-          text: dataSourse.title,
-        },
+        ...publicConfig(dataSourse),
         legend: {
           padding: [0, 5],
           bottom: 5,
-          data: filtedData.row.map(ele=>ele.substr(0,19)),
+          data: filtedData.column.map(ele => ele.substr(0, 19)),
           formatter: function (name) {
             return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
           },
         },
-        tooltip : {
+        tooltip: {
           trigger: 'item',
           formatter: "{b} : {c} ({d}%)",
-          formatter: function(params){
+          formatter: function (params) {
             return `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${params.color};"></span>
               ${params.data.name|| '' }: ${filtedData.type === 'precent'?(params.data.value * 100).toFixed(2) + '%':params.data.value} (${params.percent}%)`
           }
-          
         },
-        // toolbox: {
-        //     show : true,
-        //     feature : {
-        //         mark : {show: true},
-        //         dataView : {show: true, readOnly: false},
-        //         magicType : {show: true, type: ['line', 'bar']},
-        //         restore : {show: true},
-        //         saveAsImage : {show: true}
-        //     }
-        // },
         series: [{
-          data: filtedData.data[0].map((ele, index)=>({
-            value: ele,
-            name: filtedData.row[index]?filtedData.row[index].substr(0,19):''
+          data: filtedData.data.map((ele, index) => ({
+            value: ele[0],
+            name: filtedData.column[index] ? filtedData.column[index].substr(0, 19) : ''
           })),
           type: 'pie',
-          radius : '50%',
+          radius: '50%',
         }]
       };
     }
@@ -411,99 +394,91 @@ const excelCharts = {
   pareto: {
     name: '柏拉图',
     func(dataSourse) {
-      let filtedData = chartDataFilter(dataSourse.transpose?transpose(dataSourse.data):dataSourse.data)
+      let filtedData = chartDataFilter(dataSourse, dataSourse.transpose)
 
-      const sumArr =  transpose(filtedData.data).map(ele=>{
-        return eval(ele.map(ele=> isNaN(+ele)?0:ele).join('+'))
+      const sumArr = transpose(filtedData.data).map(ele => {
+        return eval(ele.map(ele => isNaN(+ele) ? 0 : ele).join('+'))
       });
       const sum = eval(sumArr.join('+'));
-      const proportion = sumArr.map(ele=>ele/sum)
+      const proportion = sumArr.map(ele => ele / sum)
 
-      const sortArr = sumArr.map((ele, index)=>({
+      const sortArr = sumArr.map((ele, index) => ({
         name: filtedData.row[index],
         value: ele,
         proportion: proportion[index],
       }))
-      sortArr.sort((p,n)=>p.value<n.value)
-      let sortedProportion = sortArr.map(ele=>ele.proportion)
-      sortedProportion.reduce((p,n,i)=>{sortedProportion[i]=p+n; return p+n})
+      sortArr.sort((p, n) => p.value < n.value)
+      let sortedProportion = sortArr.map(ele => ele.proportion)
+      sortedProportion.reduce((p, n, i) => {
+        sortedProportion[i] = p + n;
+        return p + n
+      })
       return {
+        ...publicConfig(dataSourse),
         tooltip: {
           trigger: 'axis',
           axisPointer: {
-              type: 'cross',
-              crossStyle: {
-                  color: '#999'
-              }
+            type: 'cross',
+            crossStyle: {
+              color: '#999'
+            }
           },
-          formatter: function(params){
+          formatter: function (params) {
             return `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${params[0].color};"></span>
             ${params[0].name  === 'null' ? '' : params[0].name}: ${filtedData.type === 'precent'?(params[0].data * 100).toFixed(2) + '%':params[0].data}<br />
             <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:transparent"></span> ${(params[1].data*100).toFixed(2)}%`
           }
         },
-        // legend: {
-        //     padding: [0, 5],
-        //     bottom: 5,
-        //     data: sortArr.map(ele=>ele.name.substr(0,19)),
-        //     formatter: function (name) {
-        //       console.log(name)
-        //       return echarts.format.truncateText(name, 120, '14px Microsoft Yahei', '…');
-        //     },
-        // },
-        xAxis: [
-            {
-                type: 'category',
-                data: sortArr.map(ele=>ele.name),
-                axisPointer: {
-                  type: 'shadow'
-                },
-                axisLabel: {
-                  formatter: function (val) {
-                    return val === 'null' ? '' : val.substr(0,19)
-                  }
-                },
+        xAxis: [{
+          type: 'category',
+          data: dataSourse.xAxis?sortArr.map((ele, index) => dataSourse.xAxis.split(';')[index]|| ''): sortArr.map(ele => ele.name),
+          axisPointer: {
+            type: 'shadow'
+          },
+          axisLabel: {
+            formatter: function (val) {
+              
+              return val === 'null' ? '' : val.substr(0, 19)
             }
-        ],
-        yAxis: [
-            {
-              type: 'value',
-              axisLabel: {
-                formatter: function (val) {
-                  if(filtedData.type === 'precent'){
-                    return val * 100 + '%';
-                  } 
-                  return val
+          },
+        }],
+        yAxis: [{
+            type: 'value',
+            axisLabel: {
+              formatter: function (val) {
+                if (filtedData.type === 'precent') {
+                  return val * 100 + '%';
                 }
-              },
-              axisPointer: {
-                label: {
-                    formatter: function (params) {
-                      return (params.value  * 100).toFixed(2) + '%';
-                      if(filtedData.type === 'precent'){
-                        return (params.value  * 100).toFixed(2) + '%';
-                      } 
-                      return params
-                    }
-                }
+                return val
               }
             },
-            {
-                type: 'value',
-                name: '占比',
-                min: 0,
-                max: 1,
-                axisLabel: {
-                    formatter: value =>`${value*100} %`
+            axisPointer: {
+              label: {
+                formatter: function (params) {
+                  return (params.value * 100).toFixed(2) + '%';
+                  if (filtedData.type === 'precent') {
+                    return (params.value * 100).toFixed(2) + '%';
+                  }
+                  return params
                 }
+              }
             }
-        ],
-        series: [
+          },
           {
-            type:"bar",
-            data: sortArr.map(ele=>ele.value),
+            type: 'value',
+            name: '占比',
+            min: 0,
+            max: 1,
+            axisLabel: {
+              formatter: value => `${value*100} %`
+            }
+          }
+        ],
+        series: [{
+            type: "bar",
+            data: sortArr.map(ele => ele.value),
             barCategoryGap: 0,
-            itemStyle:{
+            itemStyle: {
               borderColor: 'rgba(0,0,0,0.3)',
               borderWidth: 1,
               // tooltip:{
@@ -512,7 +487,7 @@ const excelCharts = {
             }
           },
           {
-            type:"line",
+            type: "line",
             data: sortedProportion,
             yAxisIndex: 1,
             // tooltip:{

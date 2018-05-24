@@ -4,10 +4,6 @@
      >
       <div class="flex-wrap">
         <div v-if="editorAble" class="btn-handle-2">
-          <!-- <el-button 
-            v-if="isEdit"
-            type="text" 
-            @click="editTable">编辑表</el-button> -->
           <span class="excel-undo" @click="undo">
             <svg aria-hidden="true">
               <use xlink:href="#icon-hebingxingzhuang"></use>
@@ -16,7 +12,7 @@
           </span>
           <span class="excel-redo" @click="redo">
             <svg aria-hidden="true">
-              <use xlink:href="#icon-hebingxingzhuang"></use>
+              <use xlink:href="#icon-xingzhuang"></use>
             </svg>
             重做
           </span>
@@ -49,16 +45,12 @@
               type="text"
               slot='reference'>删除表</el-button>    
             </el-popover>         
-          <!-- <el-button 
-            v-else
-            type="text" 
-            @click="undoTable">取消</el-button> -->
           <div class="tools">
             <span>fx</span>
             <input type="text" readonly ref="funcInput">
             <FakeSelect svg='#icon-gongshi' ref="funcSelect"  v-bind:changeHandle="funcSelect" v-bind:options="excelFunctionsOptions" name="公式"/>
-            <FakeSelect svg='#icon-charutubiao' v-bind:changeHandle="(v, i)=>chartSelect(v, i)" v-bind:options="excelChartsOptions" name="插入图表"/>
-            <FakeSelect svg='#icon-shengchengtubiao' v-bind:changeHandle="(v, i)=>chartSelect(v,i,true)" v-bind:options="excelChartsOptions" name="自动生成图表"/>
+            <FakeSelect svg='#icon-charutubiao' v-bind:changeHandle="(v)=>chartSelect(v)" v-bind:options="excelChartsOptions" name="插入图表"/>
+            <!-- <FakeSelect svg='#icon-shengchengtubiao' v-bind:changeHandle="(v)=>chartSelect(v,true)" v-bind:options="excelChartsOptions" name="自动生成图表"/> -->
           </div>
         </div>
 
@@ -84,16 +76,10 @@
             class="chart-wrap" 
             v-for="(item, index) in chartOptionsSourse" 
             :key="index" 
-            @mouseenter = "()=>toggleChartsRange(item,true)"
-            @mouseleave = "()=>toggleChartsRange(item,false)"
           >
-            <div class="chart-list-controller">
-              <span class="chart-list-editor">
-                编辑
-              </span>
-              <span class="chart-list-delete">
-                删除
-              </span>
+            <div class="chart-list-controller" v-if="editorAble">
+              <span class="iconfont chart-list-editor" title="编辑" @click="()=>editorChart(item, index)">&#xe620;</span>    
+              <i class="el-icon-close chart-list-delete" title="删除" @click="()=>deleteChart(item, index)"></i>
             </div>
             <Charts 
               readonly
@@ -120,7 +106,6 @@ import EchartsWrapper from "@/components/echartsWrapper.vue";
 import IEcharts from 'vue-echarts-v3/src/full.js';
 import Charts from '@/components/echartBox/chartControl.vue';
 import ChartView from '@/components/echartBox/chartView.vue';
-// import Charts from '@/components/echartsBox.vue';
 export default {
   components: { FakeSelect, IEcharts, Charts, ChartView },
   props: {
@@ -198,15 +183,6 @@ export default {
         autoRowSize: {syncLimit: '40%'},
      
         outsideClickDeselects: false,
-        //  eventTarget => {
-        //   if (
-        //     self.$refs.funcSelect.$refs.mySelect.contains(eventTarget) ||
-        //     self.$refs.excel.contains(eventTarget)
-        //   ) {
-        //     return false;
-        //   }
-        //   return true;
-        // },
         className: "htCenter htMiddle",
         afterSelection(r, c, r2, c2) {
           self.selectedRange = [r, c, r2, c2];
@@ -245,13 +221,16 @@ export default {
           }
         },
         beforeChange: function(changes, sourse) {
+          if(self.proxyAutofill&&sourse === 'Autofill.fill'){
+            self.proxyAutofill=false;
+            self.funcRender();
+            return false
+          }
+
 
           // 控制函数存储器
           const controlStore = (key, value) => {
             const STORE = self.funcStore;
-            // if (value === undefined && !STORE[key]) {
-            //   return;
-            // }
             if (value === false) {
               delete STORE[key];
               return;
@@ -407,7 +386,7 @@ export default {
         },
 
         afterChange: function(changes, sourse) {
-          console.log(changes, sourse)
+       
           if (sourse !== "funcRender") {
             self.funcRender();
           }
@@ -421,11 +400,9 @@ export default {
         },
 
         beforeCopy: function(changes, coords) {
-          console.log(changes, coords)
           // 缓存已合并的单元格
           const mergedArr = self.hot1.getPlugin("MergeCells")
             .mergedCellsCollection.mergedCells;
-               console.log(mergedArr)
           self.pasteMergeCache = [];
           // this.getPlugin(
           //       "MergeCells"
@@ -543,7 +520,10 @@ export default {
               self.selectedData[i][j] = this.getDataAtCell(i, j);
             }
           }
-        },       
+        }, 
+        beforeAutofill(start,end,input){
+          self[Symbol.for('cacheAutoFillInput')] = input
+        },      
         beforeAutofillInsidePopulate(
           index,
           direction,
@@ -552,55 +532,106 @@ export default {
           empty,
           fillSize
         ) {
+          dataSourse = self[Symbol.for('cacheAutoFillInput')]
           let thisCellData =
             dataSourse[index.row % dataSourse.length][
               index.col % dataSourse[0].length
             ];
-          let originRange = self.selectedRange;
+          let selectedRange = self.selectedRange;
+          let originRange = [
+            Math.min(selectedRange[0], selectedRange[2]),
+            Math.min(selectedRange[1], selectedRange[3]),
+            Math.max(selectedRange[0], selectedRange[2]),
+            Math.max(selectedRange[1], selectedRange[3])
+          ]
+          
           let targetStartCell = [];
-
+          let commonDiff = 0;
+          const localSize ={
+            row: dataSourse.length,
+            col: dataSourse[0].length,
+          }
+          const getDiff = arr =>{
+            if(arr.length <1){
+              return 1
+            }else{
+              let firstDiff = arr[1].match(/(-?\d+)\D*$/)[1]-arr[0].match(/(-?\d+)\D*$/)[1]
+              arr.some((ele,index)=> ele === index*firstDiff + arr[0] )&& (firstDiff = 1);
+              return firstDiff
+            }
+          }
           switch (direction) {
             case "left":
               targetStartCell = [originRange[0], originRange[1] - fillSize.col];
+              commonDiff = getDiff( dataSourse[index.row % dataSourse.length]);
               break;
             case "right":
-              targetStartCell = [originRange[0], originRange[1] + 1];
+              targetStartCell = [originRange[0], originRange[1] + localSize.col];
+              commonDiff = getDiff( dataSourse[index.row % dataSourse.length]);
               break;
             case "up":
+            console.log(originRange[0], fillSize.row)
               targetStartCell = [originRange[0] - fillSize.row, originRange[1]];
+              commonDiff = getDiff( dataSourse.map(ele=>ele[
+                index.col %  dataSourse[0].length
+              ]))
               break;
             case "down":
-              targetStartCell = [originRange[0] + 1, originRange[1]];
+              targetStartCell = [originRange[0] + localSize.row, originRange[1]];
+              commonDiff = getDiff( dataSourse.map(ele=>ele[
+                index.col %  dataSourse[0].length
+              ]))
               break;
             default:
               throw error("direction is undefined");
               break;
           }
+          commonDiff = isNaN(commonDiff)?1:commonDiff;
           const autoFillFunction = data => {
             if (data) {
               let md = data.replace(/([A-Z]+)([0-9]+)/gi, (match, $1, $2) => {
                 return (
                   String.fromCharCode(
                     $1.charCodeAt(0) +
-                      index.col +
+                      index.col - 
+                      index.col%localSize.col +
                       targetStartCell[1] -
                       originRange[1]
                   ) +
-                  (+$2 + index.row + targetStartCell[0] - originRange[0])
+                  (+$2 + index.row - index.row%localSize.row + targetStartCell[0] - originRange[0])
                 );
               });
               self.funcStore[
                 `${targetStartCell[0] + index.row}-${targetStartCell[1] +
                   index.col}`
-              ] = { autoFill: md };
+              ] = md ;
+              self.proxyAutofill = true 
+            } 
+            else {
+              if(/\d/.test(thisCellData)){
+                let md = String(thisCellData).replace(/(-?\d+)(\D*)$/gi, (match, $1, $2)=>{
+                  if(direction==='right'|| direction ==='left'){
+                    return (+$1 + (index.col - index.col%localSize.col +
+                        targetStartCell[1] -
+                        originRange[1])*commonDiff )+$2
+                  }
+                  return (+$1 + (index.row - index.row%localSize.row +
+                        targetStartCell[0] -
+                        originRange[0])*commonDiff )+$2
+                })
+                self.hot1.setDataAtCell(targetStartCell[0] + index.row,targetStartCell[1] +index.col,md)
+                self.proxyAutofill = true 
+              }
             }
           };
+
           const checkData = (r, c) => {
             if (/^\=/.test(self.funcStore[`${r}-${c}`])) {
               return self.funcStore[`${r}-${c}`];
             }
             return false;
           };
+
           autoFillFunction(
             checkData(
               originRange[0] + index.row % dataSourse.length,
@@ -619,22 +650,30 @@ export default {
           }
         },
 
-        beforeUndo(action){
-          console.log(action)
-        },
+        // beforeUndo(action){
+        //   console.log(action)
+        // },
         afterCreateCol(index, amount, source){
           self.hot1.updateSettings({
             colWidths:  (self.editorAble?120:64)*10/self.hot1.countCols(),
             mergeCells: JSON.parse(JSON.stringify(self.hot1.getPlugin('MergeCells').mergedCellsCollection.mergedCells))
           })
+          self.chartDataUpDate('',true)
         },
+
         afterRemoveCol(index, amount){
           self.hot1.updateSettings({
             colWidths:  (self.editorAble?120:64)*10/self.hot1.countCols(),
             mergeCells: JSON.parse(JSON.stringify(self.hot1.getPlugin('MergeCells').mergedCellsCollection.mergedCells))
           })
+          self.chartDataUpDate('',true)
+        },
+        afterCreateRow(){
+          self.chartDataUpDate('',true)
+        },
+        afterRemoveRow(){
+          self.chartDataUpDate('',true)
         }
-
       }
     };
   },
@@ -668,10 +707,15 @@ export default {
     //   this.isEdit = true;
     //   this.$emit("whetherSave", this.isEdit, this.id);
     // },
-    "chartOptionsSourse":function(){
+    "chartOptionsSourse":function(newVal, oldVal){
       this.isEdit = true;
       this.$emit("whetherSave", this.isEdit, this.id);
     },
+    "editingChart" : function (newVal){
+      if (JSON.stringify(newVal) !== '{}'){
+        this.drawChartRange()
+      }
+    }
   },
 
   computed: {
@@ -724,41 +768,71 @@ export default {
       this.cacheEditingChart = obj
     },
     saveChart(){
-      this.chartOptionsSourse.push(this.cacheEditingChart)
-      this.editingChart = {}
-      this.cacheEditingChart = {}
+      if(this.editingIndex!==null && this.editingIndex > -1) {
+         this.chartOptionsSourse.splice(this.editingIndex , 1 , this.cacheEditingChart)
+      }else{
+        this.chartOptionsSourse.push(this.cacheEditingChart)
+      }
+      this.chartStep=[]
+      this.drawCanvas();
+      this.editingChart = {};
+      this.cacheEditingChart = {};
       window.dragPosition = {};
       window.cachePosition = false;
     },
     cancelChart(){
-      this.editingChart = {}
-      this.cacheEditingChart = {}
+      this.editingIndex= null;
+      this.chartStep=[];
+      this.drawCanvas();
+      this.editingChart = {};
+      this.cacheEditingChart = {};
       window.dragPosition = {};
       window.cachePosition = false;
     },
-    chartDataUpDate(changes){
-      this.chartOptionsSourse = this.chartOptionsSourse.map(ele=>{
-        // 全局图表
-        if(ele.range === 'full'){
+    editorChart(item, index){
+      this.editingChart = item
+      this.editingIndex = index
+    },
+    deleteChart(item, index){
+      this.chartOptionsSourse.splice(index, 1)
+    },
+
+    chartDataUpDate(changes,force){
+      const {editingChart, cacheEditingChart} = this;
+      const upDateOptions = oldOptions =>{
+        if(oldOptions.range === 'full'){
           return {
-            ...ele,
+            ...oldOptions,
             ...{
               data:JSON.parse(this.getExcelData().tableData),
             }
           }
         }
+        if(force){
+          return {
+            ...oldOptions,
+            ...this.chartCompute(oldOptions.range, oldOptions.selectedRow)
+          }
+        }
         //前置校验 减少重绘
-        if(changes.some(changesEle=>ele.selectedRow[changesEle[0]]&&ele.selectedRow[changesEle[0]][changesEle[1]] === 1)){
+        if(changes.some(changesEle=>oldOptions.selectedRow[changesEle[0]]&&oldOptions.selectedRow[changesEle[0]][changesEle[1]] === 1)){
           return{
-            ...ele,
+            ...oldOptions,
             ...{
-              data: this.computeChartData(ele.selectedRow, ele.range)
+              data: this.computeChartData(oldOptions.selectedRow, oldOptions.range)
             }
           }
         }
-        return ele
-      })
+        return oldOptions
+      }
+
+      if(JSON.stringify(editingChart) !== '{}'){
+        this.editingChart = upDateOptions(JSON.stringify(cacheEditingChart) !== '{}'?cacheEditingChart:editingChart)
+      }
+      this.chartOptionsSourse = this.chartOptionsSourse.map(ele=>upDateOptions(ele))
+      
     },
+
     computeChartData(selectedRow, range){
       if(range&& range.length===1){
         return this.hot1.getData(...range[0])
@@ -778,81 +852,64 @@ export default {
 
       return data
     },
-    chartSelect(v, i, isFull) {
-      if(isFull){
-        this.editingChart ={
-          data: JSON.parse(this.getExcelData().tableData),
-          type: v,
-          title:'图表标题',
-          transpose: false,
-          range:'full'
-        };
-
-        // try{
-        //   sourseData.optionObj = excelCharts[v].func(sourseData)
-        // } catch (error){
-        //   console.log(error)
-        // }
-        //   this.editingChart = sourseData
-      }
-      const selectRange = this.hot1[Symbol.for('lastSelected')]
-      let data;
-      if(selectRange.length>1){
-        // 前置校验是否进行了多次选择， 减少计算成本
-        const selectedCol = this.selectedRow.find(ele=>ele)
-        const colStr = selectedCol.toString()
-        if(this.selectedRow.some(ele=>ele.toString() !== colStr)){
-          this.$alert(
-            this.$createElement('p',  {class:"confirm-message" }, [
-              this.$createElement('svg', null, [
-                this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
-              ]),
-              this.$createElement('span', null, "图表的数据范围不能形成一个规则矩形,请重新选择。")
-            ]),
-            "范围选择错误",
-            {
-              confirmButtonText: "确定"
-            }
-          );
-          return false
-        }
-        data = this.computeChartData(this.selectedRow)
+    chartCompute(range, selectedRow, needCheck){
+      let data ;
+      if(range === 'full'){
+        data = JSON.parse(this.getExcelData().tableData)
       }else{
-        data = this.hot1.getData(...selectRange[0])
+          if(range.length>1){
+          // 前置校验是否进行了多次选择， 减少计算成本
+          const selectedCol = selectedRow.find(ele=>ele)
+          const colStr = selectedCol.toString()
+          if(needCheck){
+            if(selectedRow.some(ele=>ele.toString() !== colStr)){
+              this.$alert(
+                this.$createElement('p',  {class:"confirm-message" }, [
+                  this.$createElement('svg', null, [
+                    this.$createElement('use', {attrs:{'xlink:href':'#icon-zhuyi'}},null)
+                  ]),
+                  this.$createElement('span', null, "图表的数据范围不能形成一个规则矩形,请重新选择。")
+                ]),
+                "范围选择错误",
+                {
+                  confirmButtonText: "确定"
+                }
+              );
+              return false
+            }
+          }
+
+          data = this.computeChartData(selectedRow)
+        }else{
+          data = this.hot1.getData(...range[0])
+        }
       }
-      
-      const sourseData = {
-        data,
-        type: v,
-        title:'图表标题',
-        transpose: false,
-        range:selectRange,
-        selectedRow: this.selectedRow,
-      }
-      // try{
-      //   sourseData.optionObj = excelCharts[v].func(sourseData)
-      // } catch (error){
-      //   console.log(error)
-      // }
-        this.editingChart = sourseData
+
+      return {
+          data: data,
+          range: range,
+          selectedRow: selectedRow,
+        }
     },
 
-    toggleChartsRange(item,show){
-      if(!this.editorAble){
-        return false
+    chartSelect(type, isFull) {
+      this.editingIndex = null ;
+      let midData =  isFull ? this.chartCompute('full', '' ,false) : this.chartCompute(this.hot1[Symbol.for('lastSelected')], this.selectedRow ,true) 
+      this.editingChart = {
+        ...midData,
+        type:type,
+        title:'图表标题',
+        transpose: false,
       }
-      if(show){
-        if(item.range==='full'){
-          this.addDrawStep('full', 'chartStep')
-        }else{
-          item.range.forEach(ele=>{
-            this.addDrawStep(...ele,'chartStep')
-          })
-        }
-      }else{
-        this.chartStep=[]
-      }
-        this.drawCanvas()
+    },
+
+    drawChartRange(){
+      this.chartStep=[]
+      const ranges = this.editingChart.range
+      ranges.forEach(ele=>{
+        this.addDrawStep(...ele,'chartStep')
+      })
+      this.drawCanvas()
     },
     addDrawStep(r, c, r2, c2,type) {
       if(r>r2){
@@ -884,6 +941,9 @@ export default {
       this[type||'drawStep'].push({
         render(ctx, color) {
           ctx.strokeStyle = color;
+          if(type){
+            ctx.setLineDash([6,3])
+          }
           ctx.strokeRect(
             settings.rowHeaderWidth + c *  settings.colWidths,
             settings.columnHeaderHeight + (eval(rowsHeight.slice(0,r).join('+'))||0),
@@ -893,6 +953,8 @@ export default {
         }
       });
     },
+
+
     // function
     funcSelect(v) {
       let selectItem;
@@ -1592,10 +1654,6 @@ export default {
   }
   .excel-redo{
     margin-left: 20px;
-    svg{
-      transform: scaleX(-1);
-      // margin-left:5px;
-    }
   }
   .line {
     display: inline-block;
@@ -1780,6 +1838,29 @@ td {
     position:absolute;
     right:0;
     display:inline-block;
+    z-index: 999;
+    font-size: 14px;
+    padding-right: 10px;
+    padding-top: 5px;
+    .chart-list-editor{
+      width: 14px;
+      height: 14px;
+      font-size: 14px;
+      margin-right: 10px;
+      vertical-align: baseline;
+      color: #ccc;
+      cursor: pointer;
+      &:hover{
+        color: #06aea6
+      }
+    }
+    .chart-list-delete{
+      cursor: pointer;
+      color: #ccc;
+      &:hover{
+        color: #FF897D
+      }
+    }
   }
 }
 .chart-wrap{
