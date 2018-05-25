@@ -82,8 +82,8 @@
 		</section>
 		<section class="display-wrap">
 			<div class="table-title">质量指标库</div>
-			<div class="handle-table">
-				<el-button type="text" @click="pdf" class="pdf-export" :class="{'pdf-able': selectedUrl.length>0}">导出</el-button>
+			<div class="handle-table" :class="{'pdf-able': selectedUrl.length>0}">
+				<el-button type="text" @click="pdf" class="pdf-export" >导出</el-button>
 				<!-- <span class="line"></span>
 				<el-button type="text">打印</el-button> -->
 			</div>    	
@@ -100,9 +100,10 @@
 				<el-table-column prop="quotaName" label="指标名称">
             <template scope="scope">
               <router-link 
+                style="color: #333;text-decoration: none;"
                 :to="{name: 'preview', query: '{quotaId: scope.row.quotaId}'}"
                 target='_blank'>
-                {{scope.row.name}}
+                {{scope.row.quotaName}}
 						  </router-link>
             </template>
 				</el-table-column>
@@ -368,17 +369,26 @@ export default {
 	font-weight: bold;
   }
   .handle-table {
-    text-align: right;
-    .el-button {
-      color: #333;
-      margin: 0px 5px;
-    }
+    float: right;
+    cursor: not-allowed;
     .line {
       width: 1px;
       height: 15px;
       background-color: #333;
       display: inline-block;
       vertical-align: text-bottom;
+    }
+    .pdf-export{
+      pointer-events: none;
+      margin-right: 30px !important;
+      color: #ccc;
+    }
+    &.pdf-able{
+      cursor: pointer !important;
+      .pdf-export{
+        color: #06aea6;
+        pointer-events: auto;
+      }
     }
   }
   .el-dialog--small {
@@ -429,15 +439,7 @@ export default {
     }
   }
 }
-.pdf-export{
-  pointer-events: none;
-  margin-right: 20px !important;
-  cursor: not-allowed;
-}
-.pdf-able{
-  pointer-events: auto;
-  cursor: pointer;
-}
+
 .pdf-preview{
   position: fixed;
   opacity: 0;

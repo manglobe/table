@@ -386,7 +386,6 @@ export default {
         },
 
         afterChange: function(changes, sourse) {
-       
           if (sourse !== "funcRender") {
             self.funcRender();
           }
@@ -426,7 +425,6 @@ export default {
           self.clipboardCache = self.sheetclip.stringify(changes);
           self.copyChangesCache = changes;
         },
-
         afterCut: function(changes) {
           // self.clipboardCache = self.sheetclip.stringify(changes);
         },
@@ -483,10 +481,16 @@ export default {
           }
         },
         afterPaste: function(changes, coords) {
-          // 外部复制，clear `copyChangesCache` `pasteMergeCache`
-          if(JSON.stringify(changes) === JSON.stringify(self.copyChangesCache)){
-            if (self.pasteMergeCache.length) {
-              self.pasteMergeCache.forEach(ele => {
+          console.log(changes, coords)
+          const {copyChangesCache, pasteMergeCache } = self
+
+          let isSingleMerged = copyChangesCache.length > 1 && 
+            copyChangesCache[0].length === 1 && 
+            copyChangesCache[copyChangesCache.length-1][0] === '' && 
+            copyChangesCache.slice(0, -1).join(',') === changes.join(',')
+          if( isSingleMerged ||changes.join(',') === self.copyChangesCache.join(',')){
+            if (pasteMergeCache.length) {
+              pasteMergeCache.forEach(ele => {
                 self.hot1
                   .getPlugin("MergeCells")
                   .merge(
@@ -498,13 +502,13 @@ export default {
               });
             }
           }else{
+          // 外部复制，clear `copyChangesCache` `pasteMergeCache`
             self.copyChangesCache = '';
             self.pasteMergeCache = [];
           }
 
           self.clipboardCache = self.sheetclip.stringify(changes);
         },
-
         afterContextMenuShow(context) {
           self.firstSelectedRow = this.getSelectedRange()[0].from.row;
           self.firstSelectedCol = this.getSelectedRange()[0].from.col;
@@ -552,7 +556,8 @@ export default {
             col: dataSourse[0].length,
           }
           const getDiff = arr =>{
-            if(arr.length <1){
+            console.log(arr)
+            if(arr.length <=1){
               return 1
             }else{
               let firstDiff = arr[1].match(/(-?\d+)\D*$/)[1]-arr[0].match(/(-?\d+)\D*$/)[1]
@@ -639,7 +644,16 @@ export default {
             )
           );
         },
-
+        beforeMergeCells(cellRange){
+          console.log(cellRange)
+          let rangeData = this.getData(cellRange.from.row,cellRange.from.col,cellRange.to.row,cellRange.to.col);
+          let midArr = [];
+          rangeData.forEach(ele => {
+                midArr = [...midArr, ...ele];
+          });
+          midArr = midArr.filter(ele => ele);
+          this[Symbol.for("mergeData")] = midArr[0];
+        },
         afterMergeCells(cellRange) {
           if(this[Symbol.for("mergeData")]){
             self.hot1.setDataAtCell(
@@ -1439,7 +1453,7 @@ export default {
 
               if(isOverlapping){
                 const ranges = mergedCellsCollection.getWithinRange(range)
-                ranges.forEach(ele=>{
+                ranges&&ranges.forEach(ele=>{
                   mergedCellsCollection.remove(ele.row, ele.col)
                 })
               }
@@ -1466,14 +1480,12 @@ export default {
                     }
                   )
                   .then(() => {
-                    this[Symbol.for("mergeData")] = midArr[0];
                     this.getPlugin("MergeCells").merge(...rangeArr);
                   })
                   .catch(() => {
                     return false;
                   });
               } else {
-                this[Symbol.for("mergeData")] = midArr[0];
                 this.getPlugin("MergeCells").merge(...rangeArr);
               }
             }

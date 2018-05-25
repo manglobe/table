@@ -91,8 +91,60 @@ export default {
         checkAll: true,
         checkedLegends: [],
         isIndeterminate: true,
-
-        controllers: [
+      }
+  },
+  computed:{
+    options: function(){
+      const chartDatas = excelCharts[this.cacheOptionsSourse.type].func(this.cacheOptionsSourse)
+      return chartDatas
+    },
+    legends: function(){
+      return this.options.legend.data
+    },
+    editingValue: function(){
+      switch(this.editingType){
+        case 'title':
+          return this.cacheOptionsSourse.title;
+        case 'legend':
+          return this.options.legend.data.join(';')
+        case 'xAxis':
+          return this.options.xAxis.data?this.options.xAxis.data.join(';'):this.options.xAxis[0].data.join(';')
+      }
+    },
+    controllers:function(){
+      switch(this.cacheOptionsSourse.type){
+        case "pie":[
+          {
+            value: 'transpose',
+            label: '切换行/列'
+          },
+          {
+            value: 'editorTitle',
+            label: '修改标题'
+          },
+          {
+            value: 'editorLegend',
+            label: '修改图例'
+          },
+        ]
+        return 
+        case "pareto":
+        return [
+          {
+            value: 'transpose',
+            label: '切换行/列'
+          },
+          {
+            value: 'editorTitle',
+            label: '修改标题'
+          },
+          {
+            value: 'editorXaxis',
+            label: '修改横坐标'
+          },
+        ]
+        default :
+        return [
           {
             value: 'transpose',
             label: '切换行/列'
@@ -114,24 +166,6 @@ export default {
             label: '指定次坐标系'
           },
         ]
-      }
-  },
-  computed:{
-    options: function(){
-      const chartDatas = excelCharts[this.cacheOptionsSourse.type].func(this.cacheOptionsSourse)
-      return chartDatas
-    },
-    legends: function(){
-      return this.options.legend.data
-    },
-    editingValue: function(){
-      switch(this.editingType){
-        case 'title':
-          return this.cacheOptionsSourse.title;
-        case 'legend':
-          return this.options.legend.data.join(';')
-        case 'xAxis':
-          return this.options.xAxis.data?this.options.xAxis.data.join(';'):this.options.xAxis[0].data.join(';')
       }
     }
   },
